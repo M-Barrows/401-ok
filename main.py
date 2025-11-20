@@ -1,7 +1,52 @@
 import streamlit as st
 import pandas as pd
+import yaml
 from src.helper_funcs import calc_401k_match, calculate_tax, calculate_taxable_income,compute_net_monthly, optimize_for_foo,calculate_total_savings_dollars, calculate_total_takehome_paycheck
 from src.globals import MAX_401K,MAX_ROTH_IRA,MAX_HSA,CHILD_TAX_CREDIT,BRACKETS
+
+    
+
+st.write(""" # 401 OK! 👌 """)
+buttons = st.container()
+with buttons:
+    c_optimize_btn, c_file_upload_btn, _ = st.columns(3)
+
+file_upload_help = """
+Please upload a yaml file with the any of the folowing parameters to auto-apply settings:
+```yaml
+hsa                        # int annual amount
+hsa_match                  # int annual amount
+roth_ira                   # int annual amount
+trad_401k_rate             # int percent (eg. 15)
+roth_401k_rate             # int percent (eg. 10)
+salary                     # int 
+min_net_pay                # int
+misc_pre_tax_deductions    # int annual amount
+misc_post_tax_deductions   # int annual amount
+brokerage                  # int annual amount
+state_local_tax            # float percent (eg. 4.5)
+```
+"""
+with c_file_upload_btn:
+        config_file = st.file_uploader("Upload Config",type=['yaml','yml'],help=file_upload_help,key='config_file')
+
+if config_file is not None: 
+    file_content = config_file.getvalue().decode('utf-8')
+    
+    # Load the YAML data
+    data = yaml.safe_load(file_content)
+
+    st.session_state.hsa = data.get('hsa',0)
+    st.session_state.hsa_match = data.get('hsa_match',0)
+    st.session_state.roth_ira = data.get('roth_ira',0)
+    st.session_state.trad_401k_rate = data.get('trad_401k_rate',0)
+    st.session_state.roth_401k_rate = data.get('roth_401k_rate',0)
+    st.session_state.salary = data.get('salary',0)
+    st.session_state.min_net_pay = data.get('min_net_pay',0)
+    st.session_state.misc_pre_tax_deductions = data.get('misc_pre_tax_deductions',0)
+    st.session_state.misc_post_tax_deductions = data.get('misc_post_tax_deductions',0)
+    st.session_state.brokerage = data.get('brokerage',0)
+    st.session_state.state_local_tax = data.get('state_local_tax',0)
 
 defaults = [ 
     ('hsa',0),
@@ -21,12 +66,6 @@ defaults = [
 for k,v in defaults:
     if k not in st.session_state:
         st.session_state[k] = v
-    
-
-st.write(""" # 401 OK! 👌 """)
-buttons = st.container()
-with buttons:
-    c_optimize_btn, c_file_upload_btn, _ = st.columns(3)
 
 data_points = st.container()
 with data_points:
@@ -44,7 +83,7 @@ debug = st.expander("Debug Info", expanded=False, icon = "🛠️")
 
 
 with c_salary:
-    salary = st.number_input("Annual Salary",100, key='salary')
+    salary = st.number_input("Annual Salary",step=100, key='salary')
     bonus = st.number_input("Annual Bonus %",0.0,15.0, value=7.5, key='bonus')
     min_net_pay = st.number_input("Minimum Allowed Net Monthly Pay",0, key='min_net_pay')
 
@@ -114,25 +153,6 @@ contribution_limits = {
 with c_optimize_btn:
         st.button("Optimize for FOO",key="b_foo_optimize",type="primary",on_click=optimize_for_foo)
 
-file_upload_help = """
-Please upload a yaml file with the any of the folowing parameters to auto-apply settings:
-```yaml
- hsa                        # int annual amount
- hsa_match                  # int annual amount
- roth_ira                   # int annual amount
- trad_401k_rate             # int percent (eg. 15)
- trad_401k_match_rate       # float percent (eg. 3.5)
- roth_401k_rate             # int percent (eg. 10)
- salary                     # int 
- min_net_pay                # int
- misc_pre_tax_deductions    # int
- misc_post_tax_deductions   # int
- brokerage                  # int annual amount
- state_local_tax            # float percent (eg. 4.5)
-```
-"""
-with c_file_upload_btn:
-        st.file_uploader("Upload Config",type=['yaml','yml'],help=file_upload_help)
 with c_paycheck:
     net_monthly_ui = compute_net_monthly()
     st.write("Net Monthly Pay: \n ### ~ $", '{:,.0f}'.format(round(net_monthly_ui)))
