@@ -26,7 +26,7 @@ for k,v in defaults:
 st.write(""" # 401 OK! 👌 """)
 buttons = st.container()
 with buttons:
-    c_optimize_btn, c_target_save_rate_slider = st.columns(2)
+    c_optimize_btn, c_file_upload_btn, _ = st.columns(3)
 
 data_points = st.container()
 with data_points:
@@ -40,7 +40,7 @@ settings_container = st.container()
 with settings_container:
     c_salary, c_pre_tax, c_after_tax, c_misc = st.columns(4)
 
-debug = st.expander("Debug Info", expanded=True, icon = "🛠️")
+debug = st.expander("Debug Info", expanded=False, icon = "🛠️")
 
 
 with c_salary:
@@ -66,9 +66,9 @@ with c_misc:
 with st.sidebar:
     children = st.number_input("Number of Children",0,10,value=3,key="children")
     pay_periods = st.number_input("Pay Periods Per Year",1,52, value=26,key="pay_periods")
-    annual_spending = st.number_input("Annual Spending Estimate",max_value=salary,value=70_000)
-    misc_pre_tax_deductions = st.number_input("Pre Tax Payroll Deductions", 0, value=4_400,key='misc_pre_tax_deductions')
-    misc_post_tax_deductions = st.number_input("Post Tax Payroll Deductions", 0, value=4_200,key='misc_post_tax_deductions')
+    annual_spending = st.number_input("Annual Spending Estimate",max_value=salary,value=50_000)
+    misc_pre_tax_deductions = st.number_input("Pre Tax Payroll Deductions", 0,key='misc_pre_tax_deductions')
+    misc_post_tax_deductions = st.number_input("Post Tax Payroll Deductions", 0,key='misc_post_tax_deductions')
     state_local_income_tax = st.number_input("State and local income tax %",1.,50.0,key='state_local_tax')
 
 salary = st.session_state['salary']
@@ -113,8 +113,26 @@ contribution_limits = {
     # final_net = compute_net_monthly()
 with c_optimize_btn:
         st.button("Optimize for FOO",key="b_foo_optimize",type="primary",on_click=optimize_for_foo)
-# with c_target_save_rate_slider:
-#         st.slider("Target Savings Rate (%)", 0,50, 25)
+
+file_upload_help = """
+Please upload a yaml file with the any of the folowing parameters to auto-apply settings:
+```yaml
+ hsa                        # int annual amount
+ hsa_match                  # int annual amount
+ roth_ira                   # int annual amount
+ trad_401k_rate             # int percent (eg. 15)
+ trad_401k_match_rate       # float percent (eg. 3.5)
+ roth_401k_rate             # int percent (eg. 10)
+ salary                     # int 
+ min_net_pay                # int
+ misc_pre_tax_deductions    # int
+ misc_post_tax_deductions   # int
+ brokerage                  # int annual amount
+ state_local_tax            # float percent (eg. 4.5)
+```
+"""
+with c_file_upload_btn:
+        st.file_uploader("Upload Config",type=['yaml','yml'],help=file_upload_help)
 with c_paycheck:
     net_monthly_ui = compute_net_monthly()
     st.write("Net Monthly Pay: \n ### ~ $", '{:,.0f}'.format(round(net_monthly_ui)))
