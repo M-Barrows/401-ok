@@ -4,7 +4,7 @@ import yaml
 from src.helper_funcs import calc_401k_match, calculate_tax, calculate_taxable_income,compute_net_monthly, optimize_for_foo,calculate_total_savings_dollars, calculate_total_takehome_paycheck
 from src.globals import MAX_401K,MAX_ROTH_IRA,MAX_HSA,CHILD_TAX_CREDIT,BRACKETS
 
-st.set_page_config(page_title="401-OK",layout="centered", initial_sidebar_state="collapsed") 
+st.set_page_config(page_title="401-OK",page_icon="👌",layout="centered", initial_sidebar_state="collapsed") 
 
 st.write(""" # 401 OK! 👌 """)
 if 'config_dict' not in st.session_state:
