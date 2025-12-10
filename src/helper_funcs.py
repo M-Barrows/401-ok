@@ -142,6 +142,7 @@ def optimize_for_foo():
     st.session_state['hsa'] = 0
     st.session_state['roth_ira'] = 0
     st.session_state['trad_401k_rate'] = 0
+    st.session_state['roth_401k_rate'] = 0
     compute_net_monthly()
 
     SAL = st.session_state['salary']
