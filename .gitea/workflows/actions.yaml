@@ -28,10 +28,16 @@ jobs:
         id: vars
         run: echo "::set-output name=commit_sha::$(echo ${GITHUB_SHA} | cut -c1-7)"
 
-      - name: Build and push
+      - name: Build and push (commit tag)
         uses: docker/build-push-action@v6
         with:
           push: true
           tags: |
             registry.codecoffee.org/401-ok:${{ steps.vars.outputs.commit_sha }}
-            registry.codecoffee.org/401-ok:latest
+
+      - name: Push latest tag
+        if: ${{ github.ref == 'refs/heads/main' }}
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: registry.codecoffee.org/401-ok:latest
