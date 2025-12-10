@@ -1,0 +1,5 @@
+[server]
+enableCORS = false
+enableXsrfProtection = false
+enableWebsocketCompression = false
+baseUrlPath = "401-ok"
