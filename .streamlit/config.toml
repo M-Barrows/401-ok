@@ -2,4 +2,4 @@
 enableCORS = false
 enableXsrfProtection = false
 enableWebsocketCompression = false
-baseUrlPath = "401-ok"
+baseUrlPath = "apps/401-ok"
