@@ -1,0 +1,24 @@
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    software-properties-common \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY . /app
+
+ENV UV_NO_DEV=1
+ENV PATH="/app/.venv/bin:$PATH"
+
+WORKDIR /app
+
+RUN uv sync --locked
+
+EXPOSE 8501
+
+HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
+
+ENTRYPOINT ["uv", "run", "streamlit", "run", "main.py", "--server.port=8501", "--server.address=0.0.0.0"]
