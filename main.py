@@ -1,17 +1,29 @@
 import streamlit as st
 import pandas as pd
 import yaml
+import time
 from src.helper_funcs import calc_401k_match, calculate_tax, calculate_taxable_income,compute_net_monthly, optimize_for_foo,calculate_total_savings_dollars, calculate_total_takehome_paycheck
 from src.globals import MAX_401K,MAX_ROTH_IRA,MAX_HSA,CHILD_TAX_CREDIT,BRACKETS
 
-st.set_page_config(page_title="401-OK",page_icon="👌",layout="centered", initial_sidebar_state="collapsed") 
+st.set_page_config(
+    page_title="401-OK",
+    page_icon="👌",
+    layout="centered", 
+    initial_sidebar_state="expanded",
+    menu_items={
+        "Report a bug":"https://git.codecoffee.org/Code_And_Coffee/401-ok/issues"
+    }) 
 
-st.write(""" # 401 OK! 👌 """)
+c_title, c_optimize_bt = st.columns([2,1])
+
+with c_title:
+    st.write(""" # 401 OK! 👌 """)
+with c_optimize_bt:
+    st.button("Optimize for FOO",key="b_foo_optimize",type="primary",on_click=optimize_for_foo)
+
 if 'config_dict' not in st.session_state:
     st.session_state['config_dict'] = dict()
-buttons = st.container()
-with buttons:
-    c_optimize_btn, c_file_upload_btn = st.columns([1,2])
+sidebar = st.sidebar
 
 file_upload_help = """
 Please upload a yaml file with the any of the folowing parameters to auto-apply settings. You can copy this and paste it in the file to get a head start.
@@ -29,10 +41,15 @@ misc_pre_tax_deductions: 1000   # int annual amount
 misc_post_tax_deductions: 1000  # int annual amount
 brokerage: 0                    # int annual amount
 state_local_tax: 5.0            # float percent (eg. 4.5)
+children: 1                     # int
+pay_periods: 26                 # int
 ```
 """
-with c_file_upload_btn:
-        config_file = st.file_uploader("Upload Config",type=['yaml','yml'],help=file_upload_help,key='config_file')
+
+with sidebar:
+    config_file = st.file_uploader("Upload Config",type=['yaml','yml'],help=file_upload_help,key='config_file')
+
+
 
 if config_file is not None: 
     file_content = config_file.getvalue().decode('utf-8')
@@ -45,12 +62,14 @@ if config_file is not None:
         st.session_state.roth_ira = data.get('roth_ira',0)
         st.session_state.trad_401k_rate = data.get('trad_401k_rate',0)
         st.session_state.roth_401k_rate = data.get('roth_401k_rate',0)
-        st.session_state.salary = data.get('salary',0)
+        st.session_state.salary = data.get('salary',100)
         st.session_state.min_net_pay = data.get('min_net_pay',0)
         st.session_state.misc_pre_tax_deductions = data.get('misc_pre_tax_deductions',0)
         st.session_state.misc_post_tax_deductions = data.get('misc_post_tax_deductions',0)
         st.session_state.brokerage = data.get('brokerage',0)
         st.session_state.state_local_tax = data.get('state_local_tax',0)
+        st.session_state.children = data.get('children',0)
+        st.session_state.pay_periods = data.get('pay_periods',0)
         st.session_state['config_dict'] = data
 defaults = [ 
     ('hsa',0),
@@ -70,6 +89,13 @@ defaults = [
 for k,v in defaults:
     if k not in st.session_state:
         st.session_state[k] = v
+with sidebar:
+    children = st.number_input("Number of Children",0,10,value=0,key="children")
+    pay_periods = st.number_input("Pay Periods Per Year",1,52, value=26,key="pay_periods")
+    # annual_spending = st.number_input("Annual Spending Estimate",max_value=salary,value=50_000)
+    misc_pre_tax_deductions = st.number_input("Pre Tax Payroll Deductions", 0,key='misc_pre_tax_deductions',help="Things like healthcare premiums. This should exclude any retirement contributions handled elsewhere in this tool")
+    misc_post_tax_deductions = st.number_input("Post Tax Payroll Deductions", 0,key='misc_post_tax_deductions',help="Things like insurance deductions. This should exclude any retirement contributions handled elsewhere in this tool")
+    state_local_income_tax = st.number_input("State and local income tax %",1.,50.0,key='state_local_tax')
 
 data_points = st.container()
 with data_points:
@@ -86,32 +112,29 @@ with settings_container:
 # debug = st.expander("Debug Info", expanded=False, icon = "🛠️")
 
 with c_salary:
-    salary = st.number_input("Annual Salary",step=100, key='salary')
+    salary = st.number_input("Annual Salary",min_value=100,step=100, key='salary')
     bonus = st.number_input("Annual Bonus %",0.0,15.0, value=7.5, key='bonus')
     min_net_pay = st.number_input("Minimum Allowed Net Monthly Pay",0, key='min_net_pay')
 
+max401k_perc = int((MAX_401K*100)/(salary*100)*100)
 with c_pre_tax: 
-    trad_401k_rate = st.slider("401k Savings Rate", 0, 25,key="trad_401k_rate")
+    trad_401k_rate = st.slider("401k Savings Rate", 0, max401k_perc ,key="trad_401k_rate")
     trad_401k_match_rate = calc_401k_match(st.session_state['trad_401k_rate'],0.5,6)
     st.number_input("401k Match Rate", value=trad_401k_match_rate,disabled=True,key="trad_401k_match_rate")
     hsa = st.number_input("Annual HSA contributions", 0,MAX_HSA,key='hsa')
     hsa_match = st.number_input("Annual HSA employer match", 0,MAX_HSA,value= 1_000,key='hsa_match')
+    if (hsa + hsa_match) > MAX_HSA:
+        st.error("HSA contributions exceed allowed maximum")
 with c_after_tax: 
-    roth_401k_rate = st.slider("Roth 401k Savings Rate", 0,25,key='roth_401k_rate')
+    roth_401k_rate = st.slider("Roth 401k Savings Rate", 0,max401k_perc,key='roth_401k_rate')
+    if ((trad_401k_rate + roth_401k_rate)/100) * salary > MAX_401K:
+        st.error("401k contributions exceed allowed maximum")
     roth_ira = st.number_input("Annual Roth IRA Contributions", 0, MAX_ROTH_IRA,key='roth_ira')
     brokerage = st.number_input("After Tax Brokerage Contributions", 0,key='brokerage')
     edu_529 = st.number_input("Annual 529 Savings", 0,value=3_600,key='edu_529')
 
 with c_misc: 
     donations = st.number_input("Annual Charitable Donations", 0, value=1_700,key='donations')
-
-with st.sidebar:
-    children = st.number_input("Number of Children",0,10,value=3,key="children")
-    pay_periods = st.number_input("Pay Periods Per Year",1,52, value=26,key="pay_periods")
-    # annual_spending = st.number_input("Annual Spending Estimate",max_value=salary,value=50_000)
-    misc_pre_tax_deductions = st.number_input("Pre Tax Payroll Deductions", 0,key='misc_pre_tax_deductions')
-    misc_post_tax_deductions = st.number_input("Post Tax Payroll Deductions", 0,key='misc_post_tax_deductions')
-    state_local_income_tax = st.number_input("State and local income tax %",1.,50.0,key='state_local_tax')
 
 salary = st.session_state['salary']
 bonus = st.session_state['bonus']/100*salary
@@ -152,8 +175,6 @@ contribution_limits = {
 
 
     # final_net = compute_net_monthly()
-with c_optimize_btn:
-        st.button("Optimize for FOO",key="b_foo_optimize",type="primary",on_click=optimize_for_foo)
 
 with c_paycheck:
     net_monthly_ui = compute_net_monthly()
@@ -170,6 +191,30 @@ with c_buckets:
 with c_limits:
     st.bar_chart(contribution_limits,x="fund_name", y="value", color="category",horizontal=True,stack="normalize",x_label="",y_label="",sort=False)
 
+config_obj = {
+    "hsa": st.session_state.get('hsa',0),
+    "hsa_match": st.session_state.get('hsa_match',0),
+    "roth_ira": st.session_state.get('roth_ira',0),
+    "trad_401k_rate": st.session_state.get('trad_401k_rate',0),
+    "roth_401k_rate": st.session_state.get('roth_401k_rate',0),
+    "salary": st.session_state.get('salary',100),
+    "min_net_pay": st.session_state.get('min_net_pay',st.session_state.get('salary')),
+    "misc_pre_tax_deductions": st.session_state.get('misc_pre_tax_deductions',0), 
+    "misc_post_tax_deductions": st.session_state.get('misc_post_tax_deductions',0),
+    "brokerage": st.session_state.get('brokerage',0), 
+    "state_local_tax": st.session_state.get('state_local_tax',0),
+    "children": st.session_state.get('children',0),
+    "pay_periods": st.session_state.get('pay_periods',0),
+}
+with sidebar:
+    try:
+        config_file = st.download_button("Download Config",data=yaml.dump(config_obj), file_name="401-ok-config.yaml",mime="text/plain",key='config_obj')
+    except: 
+        st.exception("Config could not be downloaded")
+    finally:
+        if config_file:
+            time.sleep(5)
+            st.toast("Your config has been saved",icon="💾",duration=10)
 
 # with debug: 
     # st.write("Salary: ",total_salary)
