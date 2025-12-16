@@ -97,16 +97,13 @@ defaults = [
 for k,v in defaults:
     if k not in st.session_state:
         st.session_state[k] = v
-<<<<<<< HEAD
-
-data_points = st.container()
-||||||| 16840c7
-    
-
-st.write(""" # 401 OK! 👌 """)
-buttons = st.container()
-with buttons:
-    c_optimize_btn, c_target_save_rate_slider = st.columns(2)
+with sidebar:
+    children = st.number_input("Number of Children",0,10,value=0,key="children")
+    pay_periods = st.number_input("Pay Periods Per Year",1,52, value=26,key="pay_periods")
+    # annual_spending = st.number_input("Annual Spending Estimate",max_value=salary,value=50_000)
+    misc_pre_tax_deductions = st.number_input("Pre Tax Payroll Deductions", 0,key='misc_pre_tax_deductions',help="Things like healthcare premiums. This should exclude any retirement contributions handled elsewhere in this tool")
+    misc_post_tax_deductions = st.number_input("Post Tax Payroll Deductions", 0,key='misc_post_tax_deductions',help="Things like insurance deductions. This should exclude any retirement contributions handled elsewhere in this tool")
+    state_local_income_tax = st.number_input("State and local income tax %",1.,50.0,key='state_local_tax')
 
 data_points = st.container(horizontal_alignment="center",gap=None)
 with data_points:
@@ -221,9 +218,9 @@ config_obj = {
     "state_local_tax": st.session_state.get('state_local_tax',0),
     "children": st.session_state.get('children',0),
     "pay_periods": st.session_state.get('pay_periods',0),
-    "years_to_retirement": st.session_state.get('years_to_retirement',0),
+    "years_to_retirement": st.session_state.get('years_to_retirement',25),
     "initial_retirement_balance": st.session_state.get('initial_retirement_balance',0),
-    "expected_investment_return": st.session_state.get('expected_investment_return',0),
+    "expected_investment_return": st.session_state.get('expected_investment_return',8),
 }
 with sidebar:
     try:
@@ -235,22 +232,29 @@ with sidebar:
             time.sleep(5)
             st.toast("Your config has been saved",icon="💾",duration=10)
 
-growth_df = calculate_investment(total_salary*total_savings_rate,st.session_state.get('expected_investment_return')/100,st.session_state.get('years_to_retirement'),st.session_state.get('initial_retirement_balance'))
+growth_df = calculate_investment(
+    st.session_state.get('initial_retirement_balance',500),
+    total_salary*total_savings_rate,
+    st.session_state.get('years_to_retirement',25),
+    st.session_state.get('expected_investment_return',8)
+)
+
 with c_retirement_journey_commentary:
     st.write(f"**Ending Balance: ${'{:,.0f}'.format(growth_df.iloc[-1]['Total'])}**")
     st.number_input("Years Until Retirement",min_value=1,max_value=50,value=25,key="years_to_retirement")
     st.number_input("Initial Retirement Balance",min_value=0,value=50_000,key="initial_retirement_balance")
     st.number_input("Expected Return %",min_value=1.0,max_value=50.0,value=8.0,key="expected_investment_return",format="%0.1f")
 
+
 with c_retirement_journey_chart:
     # st.dataframe(growth_df)
     st.bar_chart(data = growth_df, x='Year',y=['Starting Balance','Contributions','Growth'],sort=False)
 
 # with debug: 
-    # st.write("Salary: ",total_salary)
-    # st.write("Tax: ",st.session_state['income_tax'])
-    # st.write("Tax per paycheck: ",st.session_state['income_tax']/pay_periods)
-    # st.write("Payckeck: ", takehome_paycheck)
-    # st.write("Total Savings : ", total_savings_rate*total_salary)
-    # st.write("Total Savings Rate: ", total_savings_rate)
-    # st.session_state
+#     st.write("Salary: ",total_salary)
+#     st.write("Tax: ",st.session_state['income_tax'])
+#     st.write("Tax per paycheck: ",st.session_state['income_tax']/pay_periods)
+#     st.write("Payckeck: ", takehome_paycheck)
+#     st.write("Total Savings : ", total_savings_rate*total_salary)
+#     st.write("Total Savings Rate: ", total_savings_rate)
+#     st.session_state

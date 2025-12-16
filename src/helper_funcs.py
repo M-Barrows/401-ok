@@ -1,5 +1,7 @@
 from .globals import STANDARD_DEDUCTION,BRACKETS,CHILD_TAX_CREDIT,MAX_HSA,MAX_ROTH_IRA,MAX_401K
 import streamlit as st
+import pandas as pd
+from datetime import datetime
 
 def calc_401k_match(savings_rate: float,match: float,limit: float):
     if savings_rate == 0: 
@@ -230,3 +232,46 @@ def calculate_total_takehome_paycheck():
     ) / st.session_state['pay_periods']
     return takehome_paycheck
 
+def calculate_investment(starting_balance: int, annual_contribution, years_to_retirement: 
+int = 25, growth_rate: int = 8):
+    """
+    Calculate the future value of an investment.
+
+    Parameters:
+    starting_balance (int): The initial balance of the investment.
+    annual_contribution (int): The amount contributed to the investment each year.
+    years_to_retirement (int): The number of years until retirement. Defaults to 25.
+    growth_rate (int): The rate at which the investment grows each year. Defaults to 8.
+
+    Returns:
+    pandas.DataFrame: A DataFrame containing the year, starting balance, cumulative 
+contributions, 
+                     cumulative growth, and total values for each year.
+    """
+    print(starting_balance,annual_contribution,years_to_retirement,growth_rate,sep="\n*")
+
+    # Create a list of years
+    this_year = datetime.now().year
+    years = range(this_year, this_year + years_to_retirement)
+
+    start_balance = [starting_balance] * len(years)
+    contributions = [0] * len(years)
+    growth = [0] * len(years)
+    total = [0] * len(years)
+    total[0] = starting_balance
+    for i in range(1, len(years)):
+        contributions[i] = contributions[i-1] + annual_contribution
+        growth[i] = growth[i - 1] + (total[i - 1] * growth_rate / 100)
+        total[i] = start_balance[i] + contributions[i] + growth[i]
+
+
+    # Create a pandas DataFrame from the lists
+    df = pd.DataFrame({
+        'Year': years,
+        'Starting Balance': start_balance,
+        'Contributions': contributions,
+        'Growth': growth,
+        'Total': total
+    })
+
+    return df.iloc[1:]
