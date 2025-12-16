@@ -11,15 +11,16 @@ st.set_page_config(
     layout="centered", 
     initial_sidebar_state="expanded",
     menu_items={
-        "Report a bug":"https://git.codecoffee.org/Code_And_Coffee/401-ok/issues"
+        "Report a bug":"https://git.codecoffee.org/Code_And_Coffee/401-ok/issues",
+        "About":"Made with love by [Code and Coffee](codecoffee.org). I made this entirely for me. If you find use in it, that's a big win!\n* [Github](https://github.com/M-Barrows/)\n* [LinkedIn](https://www.linkedin.com/in/michaelabarrows/)"
     }) 
 
-c_title, c_optimize_bt = st.columns([2,1])
+c_title, c_optimize_bt = st.columns([2,1],vertical_alignment="bottom")
 
 with c_title:
     st.write(""" # 401 OK! 👌 """)
 with c_optimize_bt:
-    st.button("Optimize for FOO",key="b_foo_optimize",type="primary",on_click=optimize_for_foo)
+    st.button("Optimize for FOO",key="b_foo_optimize",type="primary",on_click=optimize_for_foo,help="Distribute savings according to [The Money Guy](https://moneyguy.com/guide/foo/)'s Financial Order of Operations")
 
 if 'config_dict' not in st.session_state:
     st.session_state['config_dict'] = dict()
@@ -97,13 +98,18 @@ with sidebar:
     misc_post_tax_deductions = st.number_input("Post Tax Payroll Deductions", 0,key='misc_post_tax_deductions',help="Things like insurance deductions. This should exclude any retirement contributions handled elsewhere in this tool")
     state_local_income_tax = st.number_input("State and local income tax %",1.,50.0,key='state_local_tax')
 
-data_points = st.container()
+data_points = st.container(horizontal_alignment="center",gap=None)
 with data_points:
     c_paycheck, c_save_rate, c_save_amt = st.columns(3) 
+
 
 charts = st.container()
 with charts:
     c_buckets, c_limits = st.columns(2)
+
+retirement_outlook = st.expander("📈 Forecast View")
+with retirement_outlook:
+    c_retirement_journey_chart, c_retirement_journey_commentary = st.columns([2,1])
 
 settings_container = st.container()
 with settings_container:
@@ -120,7 +126,7 @@ max401k_perc = int((MAX_401K*100)/(salary*100)*100)
 with c_pre_tax: 
     trad_401k_rate = st.slider("401k Savings Rate", 0, max401k_perc ,key="trad_401k_rate")
     trad_401k_match_rate = calc_401k_match(st.session_state['trad_401k_rate'],0.5,6)
-    st.number_input("401k Match Rate", value=trad_401k_match_rate,disabled=True,key="trad_401k_match_rate")
+    st.number_input("401k Match Rate", value=trad_401k_match_rate,key="trad_401k_match_rate")
     hsa = st.number_input("Annual HSA contributions", 0,MAX_HSA,key='hsa')
     hsa_match = st.number_input("Annual HSA employer match", 0,MAX_HSA,value= 1_000,key='hsa_match')
     if (hsa + hsa_match) > MAX_HSA:
@@ -216,6 +222,65 @@ with sidebar:
             time.sleep(5)
             st.toast("Your config has been saved",icon="💾",duration=10)
 
+
+def calculate_investment(annual_contributions, annual_return_rate=0.08, years_invested=25, starting_balance=0):
+    """
+    Calculate future value of an investment given the annual 
+contributions,
+    annual return rate, and number of years invested.
+
+    Args:
+        annual_contributions (float): Annual contribution amount.
+        annual_return_rate (float): Annual return rate in decimal 
+form.
+        years_invested (int): Number of years invested.
+
+    Returns:
+        pandas.DataFrame: DataFrame containing the calculated 
+contributions, gains, and totals for each year.
+    """
+    # Create a list of years
+    years = range(0, years_invested + 1)
+
+    # Initialize balances and total amounts
+    starting_balances = [starting_balance] * (years_invested + 1)
+    contribution_balances = [0] * (years_invested + 1)
+    gain_balances = [0] * (years_invested + 1)
+    total_balances = [0] * (years_invested + 1)
+    print(len(total_balances))
+    total_balances[0] = starting_balance
+    print(len(total_balances))
+    
+    for year in years:
+        if year > 0:
+            # Contributions
+            contribution_balances[year] = contribution_balances[year - 1] + annual_contributions
+            # Gains
+            gain_balances[year] = (total_balances[year-1] * annual_return_rate)+gain_balances[year-1]
+            # Total
+            total_balances[year] = contribution_balances[year]+gain_balances[year]+starting_balances[year]
+
+    # Create DataFrame with the calculated values for each year
+    df = pd.DataFrame({
+        'Year': years,
+        'Starting Balance': [starting for starting in starting_balances],
+        'Contributions': [contribution for contribution in contribution_balances],
+        'Growth': [gain for gain in gain_balances],
+        'Total': [total for total in total_balances]
+    })
+
+    return df
+
+with c_retirement_journey_commentary:
+    st.number_input("Years Until Retirement",min_value=1,max_value=50,value=25,key="years_to_retirement")
+    st.number_input("Initial Retirement Balance",min_value=0,value=50_000,key="initial_retirement_balance")
+    st.number_input("Expected Return",min_value=1,max_value=50,value=8,key="expected_investment_return")
+
+with c_retirement_journey_chart:
+    growth_df = calculate_investment(total_salary*total_savings_rate,st.session_state.get('expected_investment_return')/100,st.session_state.get('years_to_retirement'),st.session_state.get('initial_retirement_balance'))
+    # st.dataframe(growth_df)
+    st.bar_chart(growth_df[['Starting Balance','Contributions','Growth']],sort=False)
+   
 # with debug: 
     # st.write("Salary: ",total_salary)
     # st.write("Tax: ",st.session_state['income_tax'])
