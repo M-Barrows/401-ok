@@ -3,3 +3,14 @@ enableCORS = false
 enableXsrfProtection = false
 enableWebsocketCompression = false
 baseUrlPath = "apps/401-ok"
+
+[theme]
+base = "dark"
+showSidebarBorder = true
+primaryColor = "darkcyan"
+backgroundColor = "rgb(30,41,59)"
+secondaryBackgroundColor = "rgb(51,65,85)"
+baseRadius = "full"
+linkColor = "gold"
+
+chartCategoricalColors = ["darkcyan","lightblue","lightslategray"]

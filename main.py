@@ -224,7 +224,7 @@ config_obj = {
 }
 with sidebar:
     try:
-        config_file = st.download_button("Download Config",data=yaml.dump(config_obj), file_name="401-ok-config.yaml",mime="text/plain",key='config_obj')
+        config_file = st.download_button("Download Config",icon="💾", data=yaml.dump(config_obj), file_name="401-ok-config.yaml",mime="text/plain",key='config_obj')
     except: 
         st.exception("Config could not be downloaded")
     finally:
