@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 import yaml
 import time
-from src.helper_funcs import calc_401k_match, calculate_tax, calculate_taxable_income,compute_net_monthly, optimize_for_foo,calculate_total_savings_dollars, calculate_total_takehome_paycheck
+from datetime import datetime
+from src.helper_funcs import calc_401k_match, calculate_tax, calculate_taxable_income,compute_net_monthly, optimize_for_foo,calculate_total_savings_dollars, calculate_total_takehome_paycheck, calculate_investment
 from src.globals import MAX_401K,MAX_ROTH_IRA,MAX_HSA,CHILD_TAX_CREDIT,BRACKETS
 
 st.set_page_config(
@@ -44,6 +45,9 @@ brokerage: 0                    # int annual amount
 state_local_tax: 5.0            # float percent (eg. 4.5)
 children: 1                     # int
 pay_periods: 26                 # int
+years_to_retirement: 25         # int
+initial_retirement_balance: 500 # int
+expected_investment_return: 8   # int percent (eg. 8)
 ```
 """
 
@@ -71,6 +75,9 @@ if config_file is not None:
         st.session_state.state_local_tax = data.get('state_local_tax',0)
         st.session_state.children = data.get('children',0)
         st.session_state.pay_periods = data.get('pay_periods',0)
+        st.session_state.years_to_retirement = data.get('years_to_retirement',25)
+        st.session_state.initial_retirement_balance = data.get('initial_retirement_balance',500)
+        st.session_state.expected_investment_return = data.get('expected_investment_return',8)
         st.session_state['config_dict'] = data
 defaults = [ 
     ('hsa',0),
@@ -211,6 +218,9 @@ config_obj = {
     "state_local_tax": st.session_state.get('state_local_tax',0),
     "children": st.session_state.get('children',0),
     "pay_periods": st.session_state.get('pay_periods',0),
+    "years_to_retirement": st.session_state.get('years_to_retirement',0),
+    "initial_retirement_balance": st.session_state.get('initial_retirement_balance',0),
+    "expected_investment_return": st.session_state.get('expected_investment_return',0),
 }
 with sidebar:
     try:
@@ -222,65 +232,17 @@ with sidebar:
             time.sleep(5)
             st.toast("Your config has been saved",icon="💾",duration=10)
 
-
-def calculate_investment(annual_contributions, annual_return_rate=0.08, years_invested=25, starting_balance=0):
-    """
-    Calculate future value of an investment given the annual 
-contributions,
-    annual return rate, and number of years invested.
-
-    Args:
-        annual_contributions (float): Annual contribution amount.
-        annual_return_rate (float): Annual return rate in decimal 
-form.
-        years_invested (int): Number of years invested.
-
-    Returns:
-        pandas.DataFrame: DataFrame containing the calculated 
-contributions, gains, and totals for each year.
-    """
-    # Create a list of years
-    years = range(0, years_invested + 1)
-
-    # Initialize balances and total amounts
-    starting_balances = [starting_balance] * (years_invested + 1)
-    contribution_balances = [0] * (years_invested + 1)
-    gain_balances = [0] * (years_invested + 1)
-    total_balances = [0] * (years_invested + 1)
-    print(len(total_balances))
-    total_balances[0] = starting_balance
-    print(len(total_balances))
-    
-    for year in years:
-        if year > 0:
-            # Contributions
-            contribution_balances[year] = contribution_balances[year - 1] + annual_contributions
-            # Gains
-            gain_balances[year] = (total_balances[year-1] * annual_return_rate)+gain_balances[year-1]
-            # Total
-            total_balances[year] = contribution_balances[year]+gain_balances[year]+starting_balances[year]
-
-    # Create DataFrame with the calculated values for each year
-    df = pd.DataFrame({
-        'Year': years,
-        'Starting Balance': [starting for starting in starting_balances],
-        'Contributions': [contribution for contribution in contribution_balances],
-        'Growth': [gain for gain in gain_balances],
-        'Total': [total for total in total_balances]
-    })
-
-    return df
-
+growth_df = calculate_investment(total_salary*total_savings_rate,st.session_state.get('expected_investment_return')/100,st.session_state.get('years_to_retirement'),st.session_state.get('initial_retirement_balance'))
 with c_retirement_journey_commentary:
+    st.write(f"**Ending Balance: ${'{:,.0f}'.format(growth_df.iloc[-1]['Total'])}**")
     st.number_input("Years Until Retirement",min_value=1,max_value=50,value=25,key="years_to_retirement")
     st.number_input("Initial Retirement Balance",min_value=0,value=50_000,key="initial_retirement_balance")
-    st.number_input("Expected Return",min_value=1,max_value=50,value=8,key="expected_investment_return")
+    st.number_input("Expected Return %",min_value=1.0,max_value=50.0,value=8.0,key="expected_investment_return",format="%0.1f")
 
 with c_retirement_journey_chart:
-    growth_df = calculate_investment(total_salary*total_savings_rate,st.session_state.get('expected_investment_return')/100,st.session_state.get('years_to_retirement'),st.session_state.get('initial_retirement_balance'))
     # st.dataframe(growth_df)
-    st.bar_chart(growth_df[['Starting Balance','Contributions','Growth']],sort=False)
-   
+    st.bar_chart(data = growth_df, x='Year',y=['Starting Balance','Contributions','Growth'],sort=False)
+
 # with debug: 
     # st.write("Salary: ",total_salary)
     # st.write("Tax: ",st.session_state['income_tax'])
