@@ -51,11 +51,6 @@ expected_investment_return: 8   # int percent (eg. 8)
 ```
 """
 
-# with sidebar:
-#     config_file = st.file_uploader("Upload Config",type=['yaml','yml'],help=file_upload_help,key='config_file')
-#
-
-
 data_points = st.container(horizontal_alignment="center",gap=None)
 with data_points:
     c_paycheck, c_save_rate, c_save_amt = st.columns(3) 
@@ -71,7 +66,6 @@ with retirement_outlook:
 
 settings_container = st.expander("🔧 Settings",expanded=True)
 with settings_container:
-    # c_salary, c_pre_tax, c_after_tax, c_misc = st.columns(4)
     c_salary, c_pre_tax, c_after_tax, c_misc, c_config = st.tabs(["Salary","Pre-Tax","After Tax","Misc","Config"])
 
 with c_config:
@@ -121,8 +115,6 @@ defaults = [
 for k,v in defaults:
     if k not in st.session_state:
         st.session_state[k] = v
-# with sidebar:
-#     # annual_spending = st.number_input("Annual Spending Estimate",max_value=salary,value=50_000)
 
 # debug = st.expander("Debug Info", expanded=False, icon = "🛠️")
 
