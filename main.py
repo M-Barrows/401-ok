@@ -64,6 +64,8 @@ retirement_outlook = st.expander("📈 Forecast View")
 with retirement_outlook:
     c_retirement_journey_chart, c_retirement_journey_commentary = st.columns([2,1])
 
+errors = st.container()
+
 settings_container = st.expander("🔧 Settings",expanded=True)
 with settings_container:
     c_salary, c_pre_tax, c_after_tax, c_misc, c_config = st.tabs(["Salary","Pre-Tax","After Tax","Misc","Config"])
@@ -132,11 +134,13 @@ with c_pre_tax:
     hsa = st.number_input("Annual HSA contributions", 0,MAX_HSA,key='hsa')
     hsa_match = st.number_input("Annual HSA employer match", 0,MAX_HSA,value= 1_000,key='hsa_match')
     if (hsa + hsa_match) > MAX_HSA:
-        st.error("HSA contributions exceed allowed maximum")
+        with errors:
+            st.error("HSA contributions exceed allowed maximum")
 with c_after_tax: 
     roth_401k_rate = st.slider("Roth 401k Savings Rate", 0,max401k_perc,key='roth_401k_rate')
     if ((trad_401k_rate + roth_401k_rate)/100) * salary > MAX_401K:
-        st.error("401k contributions exceed allowed maximum")
+        with errors:
+            st.error("401k contributions exceed allowed maximum")
     roth_ira = st.number_input("Annual Roth IRA Contributions", 0, MAX_ROTH_IRA,key='roth_ira')
     brokerage = st.number_input("After Tax Brokerage Contributions", 0,key='brokerage')
     edu_529 = st.number_input("Annual 529 Savings", 0,value=3_600,key='edu_529')
