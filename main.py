@@ -194,7 +194,7 @@ contribution_limits = {
 
 with c_paycheck:
     net_monthly_ui = compute_net_monthly()
-    st.metric("Net Monthly Pay", 
+    st.metric("💸 Your Paycheck", 
               "~ $"+'{:,.0f}'.format(round(net_monthly_ui)),
               "~ $"+'{:,.0f}'.format(round(net_monthly_ui*12))+' Yearly',
               border=True,
@@ -202,13 +202,13 @@ with c_paycheck:
               delta_color="off",
               delta_arrow="off")
 with c_save_rate:
-    st.metric("Total Savings Rate",
+    st.metric("📈 Savings Rate",
               '{:,.2f}%'.format(total_savings_rate*100),
               border=True,
               height="stretch")
 with c_save_amt:
     st.metric(
-          "Total Savings Amt",
+          "🏦 Total Savings",
           "~ $"+'{:,.0f}'.format(round(total_savings_rate*total_salary)),
           "$"+'{:,.0f}'.format(round(total_savings_rate*total_salary/12))+" Monthly",
           border=True,
