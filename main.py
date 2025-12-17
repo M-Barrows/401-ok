@@ -13,7 +13,18 @@ st.set_page_config(
     initial_sidebar_state="expanded",
     menu_items={
         "Report a bug":"https://github.com/M-Barrows/401-ok/issues",
-        "About":"Made with love by [Code and Coffee](codecoffee.org). I made this entirely for me. If you find use in it, that's a big win!\n* [Github](https://github.com/M-Barrows/)\n* [LinkedIn](https://www.linkedin.com/in/michaelabarrows/)"
+        "About":"""
+            Made with 💛 by [Code and Coffee](https://codecoffee.org). I made this entirely for me. If you find use in it, that's a big win!
+
+            I often found myself drafting up what-if scenarios after catching up with my latest personal finance creators. However, that task involved creating new one-off spreadsheets, tweaking it until the monthly takehome amount was acceptable, generating a monthly savings amount, plugging that into various online calculators, going back to the spreadsheet, etc., etc. It was fun to dream but the workflow was exhausting. 
+
+            That's how 401-ok came to be. I just needed a single place to do all of my experimenting. This tool does NOT rival many of the existing tools out there in terms of number of features. But, what it does do is answer the questions for my specific (very simple) situation and provide instant feedback when changes in allocation are made. I don't plan to make big changes to this tool. But, as I have more questions or what-if scenarios that I can't answer, I will look to expand the tool at that time. 
+
+            If you like my work and want to connect, you can find me here: 
+
+            * [Github](https://github.com/M-Barrows/)
+            * [LinkedIn](https://www.linkedin.com/in/michaelabarrows/)
+            """
     }) 
 
 c_title, c_optimize_bt = st.columns([2,1],vertical_alignment="bottom")
