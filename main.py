@@ -12,7 +12,7 @@ st.set_page_config(
     layout="centered", 
     initial_sidebar_state="expanded",
     menu_items={
-        "Report a bug":"https://git.codecoffee.org/Code_And_Coffee/401-ok/issues",
+        "Report a bug":"https://github.com/M-Barrows/401-ok/issues",
         "About":"Made with love by [Code and Coffee](codecoffee.org). I made this entirely for me. If you find use in it, that's a big win!\n* [Github](https://github.com/M-Barrows/)\n* [LinkedIn](https://www.linkedin.com/in/michaelabarrows/)"
     }) 
 
@@ -21,7 +21,7 @@ c_title, c_optimize_bt = st.columns([2,1],vertical_alignment="bottom")
 with c_title:
     st.write(""" # 401 OK! 👌 """)
 with c_optimize_bt:
-    st.button("Optimize for FOO",key="b_foo_optimize",type="primary",on_click=optimize_for_foo,help="Distribute savings according to [The Money Guy](https://moneyguy.com/guide/foo/)'s Financial Order of Operations")
+    st.button("Optimize for FOO",key="b_foo_optimize",type="primary",on_click=optimize_for_foo,width="stretch",help="Distribute savings according to [The Money Guy](https://moneyguy.com/guide/foo/)'s Financial Order of Operations")
 
 if 'config_dict' not in st.session_state:
     st.session_state['config_dict'] = dict()
@@ -51,10 +51,34 @@ expected_investment_return: 8   # int percent (eg. 8)
 ```
 """
 
-with sidebar:
+# with sidebar:
+#     config_file = st.file_uploader("Upload Config",type=['yaml','yml'],help=file_upload_help,key='config_file')
+#
+
+
+data_points = st.container(horizontal_alignment="center",gap=None)
+with data_points:
+    c_paycheck, c_save_rate, c_save_amt = st.columns(3) 
+
+
+charts = st.container()
+with charts:
+    c_buckets, c_limits = st.columns(2)
+
+retirement_outlook = st.expander("📈 Forecast View")
+with retirement_outlook:
+    c_retirement_journey_chart, c_retirement_journey_commentary = st.columns([2,1])
+
+settings_container = st.expander("🔧 Settings",expanded=True)
+with settings_container:
+    # c_salary, c_pre_tax, c_after_tax, c_misc = st.columns(4)
+    c_salary, c_pre_tax, c_after_tax, c_misc, c_config = st.tabs(["Salary","Pre-Tax","After Tax","Misc","Config"])
+
+with c_config:
+    c_up_config, c_down_config = st.columns([2,1])
+
+with c_up_config:
     config_file = st.file_uploader("Upload Config",type=['yaml','yml'],help=file_upload_help,key='config_file')
-
-
 
 if config_file is not None: 
     file_content = config_file.getvalue().decode('utf-8')
@@ -97,35 +121,14 @@ defaults = [
 for k,v in defaults:
     if k not in st.session_state:
         st.session_state[k] = v
-with sidebar:
-    children = st.number_input("Number of Children",0,10,value=0,key="children")
-    pay_periods = st.number_input("Pay Periods Per Year",1,52, value=26,key="pay_periods")
-    # annual_spending = st.number_input("Annual Spending Estimate",max_value=salary,value=50_000)
-    misc_pre_tax_deductions = st.number_input("Pre Tax Payroll Deductions", 0,key='misc_pre_tax_deductions',help="Things like healthcare premiums. This should exclude any retirement contributions handled elsewhere in this tool")
-    misc_post_tax_deductions = st.number_input("Post Tax Payroll Deductions", 0,key='misc_post_tax_deductions',help="Things like insurance deductions. This should exclude any retirement contributions handled elsewhere in this tool")
-    state_local_income_tax = st.number_input("State and local income tax %",1.,50.0,key='state_local_tax')
-
-data_points = st.container(horizontal_alignment="center",gap=None)
-with data_points:
-    c_paycheck, c_save_rate, c_save_amt = st.columns(3) 
-
-
-charts = st.container()
-with charts:
-    c_buckets, c_limits = st.columns(2)
-
-retirement_outlook = st.expander("📈 Forecast View")
-with retirement_outlook:
-    c_retirement_journey_chart, c_retirement_journey_commentary = st.columns([2,1])
-
-settings_container = st.container()
-with settings_container:
-    c_salary, c_pre_tax, c_after_tax, c_misc = st.columns(4)
+# with sidebar:
+#     # annual_spending = st.number_input("Annual Spending Estimate",max_value=salary,value=50_000)
 
 # debug = st.expander("Debug Info", expanded=False, icon = "🛠️")
 
 with c_salary:
     salary = st.number_input("Annual Salary",min_value=100,step=100, key='salary')
+    pay_periods = st.number_input("Pay Periods Per Year",1,52, value=26,key="pay_periods")
     bonus = st.number_input("Annual Bonus %",0.0,15.0, value=7.5, key='bonus')
     min_net_pay = st.number_input("Minimum Allowed Net Monthly Pay",0, key='min_net_pay')
 
@@ -147,7 +150,11 @@ with c_after_tax:
     edu_529 = st.number_input("Annual 529 Savings", 0,value=3_600,key='edu_529')
 
 with c_misc: 
+    children = st.number_input("Number of Children",0,10,value=0,key="children")
     donations = st.number_input("Annual Charitable Donations", 0, value=1_700,key='donations')
+    misc_pre_tax_deductions = st.number_input("Pre Tax Payroll Deductions", 0,key='misc_pre_tax_deductions',help="Things like healthcare premiums. This should exclude any retirement contributions handled elsewhere in this tool")
+    misc_post_tax_deductions = st.number_input("Post Tax Payroll Deductions", 0,key='misc_post_tax_deductions',help="Things like insurance deductions. This should exclude any retirement contributions handled elsewhere in this tool")
+    state_local_income_tax = st.number_input("State and local income tax %",1.,50.0,key='state_local_tax')
 
 salary = st.session_state['salary']
 bonus = st.session_state['bonus']/100*salary
@@ -191,12 +198,27 @@ contribution_limits = {
 
 with c_paycheck:
     net_monthly_ui = compute_net_monthly()
-    st.write("Net Monthly Pay: \n ### ~ $", '{:,.0f}'.format(round(net_monthly_ui)))
+    st.metric("Net Monthly Pay", 
+              "~ $"+'{:,.0f}'.format(round(net_monthly_ui)),
+              "~ $"+'{:,.0f}'.format(round(net_monthly_ui*12))+' Yearly',
+              border=True,
+              height="stretch",
+              delta_color="off",
+              delta_arrow="off")
 with c_save_rate:
-    st.write("Total Savings Rate: \n ### ", '{:,.2f}%'.format(total_savings_rate*100))
+    st.metric("Total Savings Rate",
+              '{:,.2f}%'.format(total_savings_rate*100),
+              border=True,
+              height="stretch")
 with c_save_amt:
-    st.write("Total Savings Amt: \n ### ~ $", '{:,.0f}'.format(round(total_savings_rate*total_salary)))
-    st.write("Monthly: ~ $", '{:,.0f}'.format(round(total_savings_rate*total_salary/12)))
+    st.metric(
+          "Total Savings Amt",
+          "~ $"+'{:,.0f}'.format(round(total_savings_rate*total_salary)),
+          "$"+'{:,.0f}'.format(round(total_savings_rate*total_salary/12))+" Monthly",
+          border=True,
+          delta_arrow="off",
+          delta_color="off"
+    )
 
 
 with c_buckets:
@@ -222,7 +244,7 @@ config_obj = {
     "initial_retirement_balance": st.session_state.get('initial_retirement_balance',0),
     "expected_investment_return": st.session_state.get('expected_investment_return',8),
 }
-with sidebar:
+with c_down_config:
     try:
         config_file = st.download_button("Download Config",icon="💾", data=yaml.dump(config_obj), file_name="401-ok-config.yaml",mime="text/plain",key='config_obj')
     except: 
