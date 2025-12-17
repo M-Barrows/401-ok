@@ -107,6 +107,7 @@ def compute_net_monthly():
     donations_per_period = st.session_state.get('donations', 0) / pay_periods
 
     salary_per_period = st.session_state['salary'] / pay_periods
+    edu_529_per_period = st.session_state['edu_529'] / pay_periods
     trad_per_period = (st.session_state['trad_401k_rate'] / 100) * st.session_state['salary'] / pay_periods
     roth_per_period = (st.session_state['roth_401k_rate'] / 100) * st.session_state['salary'] / pay_periods
 
@@ -121,6 +122,7 @@ def compute_net_monthly():
         - misc_post_per_period
         - misc_pre_per_period
         - donations_per_period
+        - edu_529_per_period
     )
     return takehome_per_period * 2  # two pay periods ≈ one month
 
