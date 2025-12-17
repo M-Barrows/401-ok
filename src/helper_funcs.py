@@ -80,7 +80,6 @@ def calc_remaining_salary(roth, hsa,trad_401k,roth_401k):
             - roth
             - roth_401k
     )
-    print("remaining: ", remaining)
     return remaining
 
 def compute_net_monthly():
@@ -250,7 +249,6 @@ int = 25, growth_rate: int = 8):
 contributions, 
                      cumulative growth, and total values for each year.
     """
-    print(starting_balance,annual_contribution,years_to_retirement,growth_rate,sep="\n*")
 
     # Create a list of years
     this_year = datetime.now().year
