@@ -1,6 +1,7 @@
 import streamlit as st
 
-from tools.session_data import init_session_data, update_config_dict
+from tools.globals import DEFAULTS
+from tools.session_data import init_session_data
 
 st.set_page_config(
     page_title="401-OK",
@@ -26,35 +27,15 @@ st.write("# 401-OK! 👌")
 
 init_session_data()
     
-defaults = [
-    'hsa',
-    'hsa_match',
-    'roth_ira',
-    'trad_401k_rate',
-    'trad_401k_match_rate',
-    'roth_401k_rate',
-    'edu_529',
-    'salary',
-    'min_net_pay',
-    'misc_pre_tax_deductions',
-    'misc_post_tax_deductions',
-    'brokerage',
-    'state_local_tax',
-    'taxable_income',
-    'children',
-    'years_to_retirement',
-    'initial_retirement_balance',
-    'expected_investment_return'
-]
-for key in defaults:
+
+for key,value in DEFAULTS.items():
     if key in st.session_state:
         st.session_state[key]=st.session_state[key]
-
-# update_config_dict()
 pg = st.navigation({
     "Home": [st.Page('pages/overview/home.py',title="Home",icon="🏠",default=True)],
     "Retirement": [
-    st.Page('pages/retirement/profile.py', title="Overview", icon="🏖")
+    st.Page('pages/retirement/profile.py', title="Overview", icon="🏖"),
+    st.Page('pages/retirement/accounts.py', title="Accounts", icon="🏦")
     ]
 })
 pg.run()

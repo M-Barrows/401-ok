@@ -1,8 +1,44 @@
 import streamlit as st
 from tools.globals import MAX_HSA, MAX_401K, MAX_ROTH_IRA
-from tools.helper_funcs import calc_401k_match
+# from tools.helper_funcs import calc_401k_match
 import yaml
 import time
+def update_config_from_file():
+    print("Changed")
+    # Load the YAML data
+    if st.session_state['config_file'] is not None:
+        file_content = st.session_state['config_file'].getvalue().decode('utf-8')
+        data = yaml.safe_load(file_content)
+        print('read file contents')
+        # if st.session_state['config_dict'] != data:
+        print('setting config again')
+        st.session_state.hsa = data.get('hsa',st.session_state.hsa)
+        st.session_state.hsa_match = data.get('hsa_match',0)
+        st.session_state.roth_ira = data.get('roth_ira',0)
+        st.session_state.trad_401k_rate = data.get('trad_401k_rate',0)
+        st.session_state.roth_401k_rate = data.get('roth_401k_rate',0)
+        st.session_state.salary = data.get('salary',100)
+        st.session_state.min_net_pay = data.get('min_net_pay',0)
+        st.session_state.misc_pre_tax_deductions = data.get('misc_pre_tax_deductions',0)
+        st.session_state.misc_post_tax_deductions = data.get('misc_post_tax_deductions',0)
+        st.session_state.brokerage = data.get('brokerage',0)
+        st.session_state.state_local_tax = data.get('state_local_tax',0)
+        st.session_state.children = data.get('children',0)
+        st.session_state.pay_periods = data.get('pay_periods',0)
+        st.session_state.years_to_retirement = data.get('years_to_retirement',25)
+        st.session_state.roth_ira_start_balance =data.get('roth_ira_start_balance',0)
+        st.session_state.roth_ira_expected_return =data.get('roth_ira_expected_return',0)
+        st.session_state.hsa_start_balance =data.get('hsa_start_balance',0)
+        st.session_state.hsa_expected_return =data.get('hsa_expected_return',0)
+        st.session_state.roth_401k_start_balance =data.get('roth_401k_start_balance',0)
+        st.session_state.roth_401k_expected_return =data.get('roth_401k_expected_return',0)
+        st.session_state.trad_401k_start_balance =data.get('trad_401k_start_balance',0)
+        st.session_state.trad_401k_expected_return =data.get('trad_401k_expected_return',0)
+        st.session_state.edu_529_start_balance =data.get('edu_529_start_balance',0)
+        st.session_state.edu_529_expected_return =data.get('edu_529_expected_return',0)
+        st.session_state.brokerage_start_balance =data.get('brokerage_start_balance',0)
+        st.session_state.brokerage_expected_return =data.get('brokerage_expected_return',0)
+
 def settings_container():
     file_upload_help = f"""
         Please upload a yaml file with the any of the folowing parameters to auto-apply settings. You can copy this and paste it in the file to get a head start.
@@ -23,8 +59,6 @@ def settings_container():
         children: {st.session_state.get('children',0)} # int
         pay_periods: {st.session_state.get('pay_periods',0)} # int
         years_to_retirement: {st.session_state.get('years_to_retirement',0)} # int
-        initial_retirement_balance: {st.session_state.get('initial_retirement_balance',0)} # int
-        expected_investment_return: {int(st.session_state.get('expected_investment_return',0))} # int percent (eg. 8)
         ```
         """
     max401k_perc = int((MAX_401K*100)/(st.session_state['salary']*100)*100)
@@ -39,35 +73,39 @@ def settings_container():
         c_up_config, c_down_config = st.columns([2,1])
 
     with c_up_config:
-        config_file = st.file_uploader("Upload Config",type=['yaml','yml'],help=file_upload_help,key='config_file')
-
-    if config_file is not None: 
-        file_content = config_file.getvalue().decode('utf-8')
-        # Load the YAML data
-        data = yaml.safe_load(file_content)
-        if st.session_state['config_dict'] != data:
-            print('setting config again')
-            st.session_state.hsa = data.get('hsa',0)
-            st.session_state.hsa_match = data.get('hsa_match',0)
-            st.session_state.roth_ira = data.get('roth_ira',0)
-            st.session_state.trad_401k_rate = data.get('trad_401k_rate',0)
-            st.session_state.roth_401k_rate = data.get('roth_401k_rate',0)
-            st.session_state.salary = data.get('salary',100)
-            st.session_state.min_net_pay = data.get('min_net_pay',0)
-            st.session_state.misc_pre_tax_deductions = data.get('misc_pre_tax_deductions',0)
-            st.session_state.misc_post_tax_deductions = data.get('misc_post_tax_deductions',0)
-            st.session_state.brokerage = data.get('brokerage',0)
-            st.session_state.state_local_tax = data.get('state_local_tax',0)
-            st.session_state.children = data.get('children',0)
-            st.session_state.pay_periods = data.get('pay_periods',0)
-            st.session_state.years_to_retirement = data.get('years_to_retirement',25)
-            st.session_state.initial_retirement_balance = data.get('initial_retirement_balance',500)
-            st.session_state.expected_investment_return = data.get('expected_investment_return',8)
-            st.session_state['config_dict'] = data
+        config_file = st.file_uploader("Upload Config",type=['yaml','yml'],help=file_upload_help,key='config_file',on_change=update_config_from_file)
 
     with c_down_config:
         try:
-            config_file = st.download_button("Download Config",icon="💾", data=yaml.dump(st.session_state['config_dict']), file_name="401-ok-config.yaml",mime="text/plain",key='config_obj')
+            config_dict = {
+                'hsa':st.session_state.hsa,
+                'hsa_match':st.session_state.hsa_match,
+                'roth_ira':st.session_state.roth_ira,
+                'trad_401k_rate':st.session_state.trad_401k_rate,
+                'roth_401k_rate':st.session_state.roth_401k_rate,
+                'salary':st.session_state.salary,
+                'min_net_pay':st.session_state.min_net_pay,
+                'misc_pre_tax_deductions':st.session_state.misc_pre_tax_deductions,
+                'misc_post_tax_deductions':st.session_state.misc_post_tax_deductions,
+                'brokerage':st.session_state.brokerage,
+                'state_local_tax':st.session_state.state_local_tax,
+                'children':st.session_state.children,
+                'pay_periods':st.session_state.pay_periods,
+                'years_to_retirement':st.session_state.years_to_retirement,
+                'roth_ira_start_balance':st.session_state.roth_ira_start_balance,
+                'roth_ira_expected_return':st.session_state.roth_ira_expected_return,
+                'hsa_start_balance':st.session_state.hsa_start_balance,
+                'hsa_expected_return':st.session_state.hsa_expected_return,
+                'roth_401k_start_balance':st.session_state.roth_401k_start_balance,
+                'roth_401k_expected_return':st.session_state.roth_401k_expected_return,
+                'trad_401k_start_balance':st.session_state.trad_401k_start_balance,
+                'trad_401k_expected_return':st.session_state.trad_401k_expected_return,
+                'edu_529_start_balance':st.session_state.edu_529_start_balance,
+                'edu_529_expected_return':st.session_state.edu_529_expected_return,
+                'brokerage_start_balance':st.session_state.brokerage_start_balance,
+            }
+
+            config_file = st.download_button("Download Config",icon="💾", data=yaml.dump(config_dict), file_name="401-ok-config.yaml",mime="text/plain",key='config_obj')
         except: 
             st.exception("Config could not be downloaded")
         finally:
