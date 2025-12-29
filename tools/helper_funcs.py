@@ -17,7 +17,7 @@ def calculate_taxable_income(**kwargs):
     hsa = kwargs.get('hsa', st.session_state['hsa'])
     donations = kwargs.get('donations', st.session_state['donations'])
     misc_pre_tax_deductions = kwargs.get('misc_pre_tax_deductions', st.session_state['misc_pre_tax_deductions'])
-    trad_401k_rate = kwargs.get('trad_401k_rate', st.session_state['trad_401k_rate'])/100
+    trad_401k_rate = kwargs.get('trad_401k_rate', st.session_state.get('trad_401k_rate',0))/100
     bonus_amount = bonus/100*salary
     st.session_state['taxable_income'] = (
         (salary + bonus_amount)
@@ -90,7 +90,7 @@ def compute_net_monthly():
         hsa=st.session_state['hsa'],
         donations=st.session_state['donations'],
         misc_pre_tax_deductions=st.session_state['misc_pre_tax_deductions'],
-        trad_401k_rate=st.session_state['trad_401k_rate']
+        trad_401k_rate=st.session_state.get('trad_401k_rate',0)
     )
     st.session_state['income_tax'] = calculate_tax(ti) - (
         CHILD_TAX_CREDIT * st.session_state.get('children', 0)
@@ -197,8 +197,8 @@ def optimize_for_foo():
 
 def calculate_total_savings_dollars():
 
-    trad_401k_dollars = (st.session_state['trad_401k_rate'] / 100) * st.session_state['salary']
-    trad_match_dollars = (st.session_state['trad_401k_match_rate']) / 100 * st.session_state['salary']
+    trad_401k_dollars = (st.session_state.get('trad_401k_rate',0) / 100) * st.session_state['salary']
+    trad_match_dollars = (st.session_state.get('trad_401k_match_rate',0)) / 100 * st.session_state['salary']
     roth_401k_dollars = (st.session_state['roth_401k_rate'] / 100) * st.session_state['salary']
     roth_ira_dollars = st.session_state['roth_ira']
     hsa_dollars = st.session_state['hsa']

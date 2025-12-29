@@ -4,6 +4,10 @@ enableXsrfProtection = false
 enableWebsocketCompression = false
 baseUrlPath = "apps/401-ok"
 
+[client]
+showErrorDetails = "none"
+# toolbarMode = "viewer"
+
 [theme]
 base = "dark"
 showSidebarBorder = true
