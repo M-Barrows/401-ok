@@ -17,4 +17,4 @@ secondaryBackgroundColor = "rgb(51,65,85)"
 baseRadius = "full"
 linkColor = "gold"
 
-chartCategoricalColors = ["darkcyan","lightblue","lightslategray"]
+chartCategoricalColors = ["darkcyan","lightblue","lightslategray","lightseagreen","lightcyan"]
