@@ -4,6 +4,10 @@ enableXsrfProtection = false
 enableWebsocketCompression = false
 baseUrlPath = "apps/401-ok"
 
+[client]
+showErrorDetails = "none"
+# toolbarMode = "viewer"
+
 [theme]
 base = "dark"
 showSidebarBorder = true
@@ -13,4 +17,4 @@ secondaryBackgroundColor = "rgb(51,65,85)"
 baseRadius = "full"
 linkColor = "gold"
 
-chartCategoricalColors = ["darkcyan","lightblue","lightslategray"]
+chartCategoricalColors = ["darkcyan","lightblue","lightslategray","lightseagreen","lightcyan"]

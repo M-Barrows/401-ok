@@ -1,4 +1,4 @@
-from .globals import STANDARD_DEDUCTION,BRACKETS,CHILD_TAX_CREDIT,MAX_HSA,MAX_ROTH_IRA,MAX_401K
+from .globals import ACCOUNT_KEYS, STANDARD_DEDUCTION,BRACKETS,CHILD_TAX_CREDIT,MAX_HSA,MAX_ROTH_IRA,MAX_401K
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -17,7 +17,7 @@ def calculate_taxable_income(**kwargs):
     hsa = kwargs.get('hsa', st.session_state['hsa'])
     donations = kwargs.get('donations', st.session_state['donations'])
     misc_pre_tax_deductions = kwargs.get('misc_pre_tax_deductions', st.session_state['misc_pre_tax_deductions'])
-    trad_401k_rate = kwargs.get('trad_401k_rate', st.session_state['trad_401k_rate'])/100
+    trad_401k_rate = kwargs.get('trad_401k_rate', st.session_state.get('trad_401k_rate',0))/100
     bonus_amount = bonus/100*salary
     st.session_state['taxable_income'] = (
         (salary + bonus_amount)
@@ -90,7 +90,7 @@ def compute_net_monthly():
         hsa=st.session_state['hsa'],
         donations=st.session_state['donations'],
         misc_pre_tax_deductions=st.session_state['misc_pre_tax_deductions'],
-        trad_401k_rate=st.session_state['trad_401k_rate']
+        trad_401k_rate=st.session_state.get('trad_401k_rate',0)
     )
     st.session_state['income_tax'] = calculate_tax(ti) - (
         CHILD_TAX_CREDIT * st.session_state.get('children', 0)
@@ -197,8 +197,8 @@ def optimize_for_foo():
 
 def calculate_total_savings_dollars():
 
-    trad_401k_dollars = (st.session_state['trad_401k_rate'] / 100) * st.session_state['salary']
-    trad_match_dollars = (st.session_state['trad_401k_match_rate']) / 100 * st.session_state['salary']
+    trad_401k_dollars = (st.session_state.get('trad_401k_rate',0) / 100) * st.session_state['salary']
+    trad_match_dollars = (st.session_state.get('trad_401k_match_rate',0)) / 100 * st.session_state['salary']
     roth_401k_dollars = (st.session_state['roth_401k_rate'] / 100) * st.session_state['salary']
     roth_ira_dollars = st.session_state['roth_ira']
     hsa_dollars = st.session_state['hsa']
@@ -256,8 +256,8 @@ contributions,
 
     start_balance = [starting_balance] * len(years)
     contributions = [0] * len(years)
-    growth = [0] * len(years)
-    total = [0] * len(years)
+    growth = [0.0] * len(years)
+    total = [0.0] * len(years)
     total[0] = starting_balance
     for i in range(1, len(years)):
         contributions[i] = contributions[i-1] + annual_contribution
@@ -275,3 +275,52 @@ contributions,
     })
 
     return df.iloc[1:]
+
+
+def calculate_total_starting_balance():
+    total = (
+        st.session_state.get('roth_ira_start_balance')
+        + st.session_state.get('hsa_start_balance')
+        + st.session_state.get('roth_401k_start_balance')
+        + st.session_state.get('trad_401k_start_balance')
+        + st.session_state.get('edu_529_start_balance')
+        + st.session_state.get('brokerage_start_balance')
+     )
+    return total
+
+def calculate_annual_contributions_by_account():
+    annual_contributions = dict()
+    annual_contributions['roth_401k'] = st.session_state.get('roth_401k_rate') * st.session_state.get('salary')
+    annual_contributions['trad_401k'] = (st.session_state.get('trad_401k_rate') + st.session_state.get('trad_401k_match_rate'))/100 * st.session_state.get('salary')
+    annual_contributions['hsa'] = st.session_state.get('hsa') + st.session_state.get('hsa_match')
+    annual_contributions['roth_ira'] = st.session_state.get('roth_ira')
+    annual_contributions['brokerage'] = st.session_state.get('brokerage')
+    annual_contributions['edu_529'] = st.session_state.get('edu_529')
+    return annual_contributions
+
+def get_expected_returns_by_account():
+    expected_returns = dict()
+    for account in ACCOUNT_KEYS:
+        expected_returns[account] = st.session_state.get(f'{account}_expected_return')
+    return expected_returns
+
+def get_current_balance_by_account():
+    start_balances = dict()
+    for account in ACCOUNT_KEYS:
+        start_balances[account] = st.session_state.get(f'{account}_start_balance')
+    return start_balances
+
+def nest_egg_forecast_by_account_df(config_dict:dict):
+    full_df = pd.DataFrame()
+    for account,details in config_dict.items():
+        df = calculate_investment(
+            details['start_balance'],
+            details['contributions'],
+            st.session_state.get('years_to_retirement',25),
+            details['expected_return'],
+        )
+        df['Account'] = account
+        df['Total'] = df['Total'].round(2)
+        if df['Total'].max() > 0:
+            full_df = pd.concat([full_df,df[['Year','Account','Total','Starting Balance','Contributions','Growth']]])
+    return full_df
