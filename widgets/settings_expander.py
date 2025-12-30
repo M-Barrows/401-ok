@@ -4,14 +4,10 @@ from tools.globals import MAX_HSA, MAX_401K, MAX_ROTH_IRA
 import yaml
 import time
 def update_config_from_file():
-    print("Changed")
     # Load the YAML data
     if st.session_state['config_file'] is not None:
         file_content = st.session_state['config_file'].getvalue().decode('utf-8')
         data = yaml.safe_load(file_content)
-        print('read file contents')
-        # if st.session_state['config_dict'] != data:
-        print('setting config again')
         st.session_state.hsa = data.get('hsa',st.session_state.hsa)
         st.session_state.hsa_match = data.get('hsa_match',0)
         st.session_state.roth_ira = data.get('roth_ira',0)
@@ -75,6 +71,40 @@ def settings_container():
     with c_up_config:
         config_file = st.file_uploader("Upload Config",type=['yaml','yml'],help=file_upload_help,key='config_file',on_change=update_config_from_file)
 
+
+    with c_salary:
+        salary = st.number_input("Annual Salary",min_value=100,step=100, key='salary')
+        pay_periods = st.number_input("Pay Periods Per Year",1,52, value=26,key="pay_periods")
+        bonus = st.number_input("Annual Bonus %",0.0,15.0, value=7.5, key='bonus')
+        min_net_pay = st.number_input("Minimum Allowed Net Monthly Pay",0, key='min_net_pay')
+        st.session_state['bonus_amt'] = bonus/100*salary
+        st.session_state['total_salary'] = salary + st.session_state['bonus_amt']
+
+    with c_pre_tax: 
+        trad_401k_rate = st.slider("401k Savings Rate", 0, max401k_perc ,key="trad_401k_rate")
+        st.number_input("401k Match Rate",key="trad_401k_match_rate")
+        hsa = st.number_input("Annual HSA contributions", 0,MAX_HSA,key='hsa')
+        hsa_match = st.number_input("Annual HSA employer match", 0,MAX_HSA,value= 1_000,key='hsa_match')
+        if (hsa + hsa_match) > MAX_HSA:
+            with errors:
+                st.error("HSA contributions exceed allowed maximum")
+    
+    with c_after_tax: 
+        roth_401k_rate = st.slider("Roth 401k Savings Rate", 0,max401k_perc,key='roth_401k_rate')
+        if ((trad_401k_rate + roth_401k_rate)/100) * salary > MAX_401K:
+            with errors:
+                st.error("401k contributions exceed allowed maximum")
+        roth_ira = st.number_input("Annual Roth IRA Contributions", 0, MAX_ROTH_IRA,key='roth_ira')
+        brokerage = st.number_input("After Tax Brokerage Contributions", 0,key='brokerage')
+        edu_529 = st.number_input("Annual 529 Savings", 0,value=3_600,key='edu_529')
+
+    with c_misc: 
+        children = st.number_input("Number of Children",0,10,value=0,key="children")
+        donations = st.number_input("Annual Charitable Donations", 0, value=1_700,key='donations')
+        misc_pre_tax_deductions = st.number_input("Pre Tax Payroll Deductions", 0,key='misc_pre_tax_deductions',help="Things like healthcare premiums. This should exclude any retirement contributions handled elsewhere in this tool")
+        misc_post_tax_deductions = st.number_input("Post Tax Payroll Deductions", 0,key='misc_post_tax_deductions',help="Things like insurance deductions. This should exclude any retirement contributions handled elsewhere in this tool")
+        state_local_income_tax = st.number_input("State and local income tax %",1.,50.0,key='state_local_tax')
+
     with c_down_config:
         try:
             config_dict = {
@@ -112,38 +142,4 @@ def settings_container():
             if config_file:
                 time.sleep(5)
                 st.toast("Your config has been saved",icon="💾",duration=10)
-
-
-    with c_salary:
-        salary = st.number_input("Annual Salary",min_value=100,step=100, key='salary')
-        pay_periods = st.number_input("Pay Periods Per Year",1,52, value=26,key="pay_periods")
-        bonus = st.number_input("Annual Bonus %",0.0,15.0, value=7.5, key='bonus')
-        min_net_pay = st.number_input("Minimum Allowed Net Monthly Pay",0, key='min_net_pay')
-        st.session_state['bonus_amt'] = bonus/100*salary
-        st.session_state['total_salary'] = salary + st.session_state['bonus_amt']
-
-    with c_pre_tax: 
-        trad_401k_rate = st.slider("401k Savings Rate", 0, max401k_perc ,key="trad_401k_rate")
-        st.number_input("401k Match Rate",key="trad_401k_match_rate")
-        hsa = st.number_input("Annual HSA contributions", 0,MAX_HSA,key='hsa')
-        hsa_match = st.number_input("Annual HSA employer match", 0,MAX_HSA,value= 1_000,key='hsa_match')
-        if (hsa + hsa_match) > MAX_HSA:
-            with errors:
-                st.error("HSA contributions exceed allowed maximum")
-    
-    with c_after_tax: 
-        roth_401k_rate = st.slider("Roth 401k Savings Rate", 0,max401k_perc,key='roth_401k_rate')
-        if ((trad_401k_rate + roth_401k_rate)/100) * salary > MAX_401K:
-            with errors:
-                st.error("401k contributions exceed allowed maximum")
-        roth_ira = st.number_input("Annual Roth IRA Contributions", 0, MAX_ROTH_IRA,key='roth_ira')
-        brokerage = st.number_input("After Tax Brokerage Contributions", 0,key='brokerage')
-        edu_529 = st.number_input("Annual 529 Savings", 0,value=3_600,key='edu_529')
-
-    with c_misc: 
-        children = st.number_input("Number of Children",0,10,value=0,key="children")
-        donations = st.number_input("Annual Charitable Donations", 0, value=1_700,key='donations')
-        misc_pre_tax_deductions = st.number_input("Pre Tax Payroll Deductions", 0,key='misc_pre_tax_deductions',help="Things like healthcare premiums. This should exclude any retirement contributions handled elsewhere in this tool")
-        misc_post_tax_deductions = st.number_input("Post Tax Payroll Deductions", 0,key='misc_post_tax_deductions',help="Things like insurance deductions. This should exclude any retirement contributions handled elsewhere in this tool")
-        state_local_income_tax = st.number_input("State and local income tax %",1.,50.0,key='state_local_tax')
 
