@@ -25,4 +25,3 @@ with c_save_amt:
 with c_nest_egg_forecast:
     nest_egg_metric()
 
-st.session_state    

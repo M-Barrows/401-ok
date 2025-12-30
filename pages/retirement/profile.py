@@ -4,4 +4,3 @@ from metrics.core import nest_egg_metric, paycheck_metric, savings_amt_metric, s
 from widgets.nest_egg_chart import nest_egg_forecast_chart
 
 nest_egg_forecast_chart()
-# st.session_state
