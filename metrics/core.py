@@ -48,6 +48,7 @@ def nest_egg_metric():
     return st.metric(
           "📈 Projected Nest Egg",
           "~ $"+'{:,.0f}'.format(round(final_portfolio_value)),
+          "~ $"+'{:,.0f}'.format(round(final_portfolio_value*0.047)) + " Yearly",
           border=True,
           delta_arrow="off",
           delta_color="off",

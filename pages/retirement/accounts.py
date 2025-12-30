@@ -38,9 +38,9 @@ with c_1:
             st.write(account['display_name'])
             start, rate = st.columns(2)
             with start: 
-                st.number_input("Balance", key=f"{account['session_state_key']}_start_balance")
+                st.number_input("Current Balance", key=f"{account['session_state_key']}_start_balance")
             with rate: 
-                st.number_input("Rate", key=f"{account['session_state_key']}_expected_return")
+                st.number_input("Expected Return (%)", key=f"{account['session_state_key']}_expected_return")
 with c_2: 
     for account in accounts[items_per_column:(items_per_column*2)]:
         account_container = st.container(border=True)
@@ -48,9 +48,9 @@ with c_2:
             st.write(account['display_name'])
             start, rate = st.columns(2)
             with start: 
-                st.number_input("Balance", key=f"{account['session_state_key']}_start_balance")
+                st.number_input("Current Balance", key=f"{account['session_state_key']}_start_balance")
             with rate: 
-                st.number_input("Rate", key=f"{account['session_state_key']}_expected_return")
+                st.number_input("Expected Return (%)", key=f"{account['session_state_key']}_expected_return")
 
 with c_3: 
     for account in accounts[(items_per_column*2):]:
@@ -59,7 +59,6 @@ with c_3:
             st.write(account['display_name'])
             start, rate = st.columns(2)
             with start: 
-                st.number_input("Balance", key=f"{account['session_state_key']}_start_balance")
+                st.number_input("Current Balance", key=f"{account['session_state_key']}_start_balance")
             with rate: 
-                st.number_input("Rate", key=f"{account['session_state_key']}_expected_return")
-st.session_state
+                st.number_input("Expected Return (%)", key=f"{account['session_state_key']}_expected_return")
