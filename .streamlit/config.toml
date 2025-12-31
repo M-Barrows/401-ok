@@ -6,7 +6,7 @@ baseUrlPath = "apps/401-ok"
 
 [client]
 showErrorDetails = "none"
-# toolbarMode = "viewer"
+toolbarMode = "viewer"
 
 [theme]
 base = "dark"
@@ -18,3 +18,6 @@ baseRadius = "full"
 linkColor = "gold"
 
 chartCategoricalColors = ["darkcyan","lightblue","lightslategray","lightseagreen","lightcyan"]
+
+[browser]
+gatherUsageStats = false
