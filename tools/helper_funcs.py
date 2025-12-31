@@ -290,7 +290,7 @@ def calculate_total_starting_balance():
 
 def calculate_annual_contributions_by_account():
     annual_contributions = dict()
-    annual_contributions['roth_401k'] = st.session_state.get('roth_401k_rate') * st.session_state.get('salary')
+    annual_contributions['roth_401k'] = (st.session_state.get('roth_401k_rate')/100) * st.session_state.get('salary')
     annual_contributions['trad_401k'] = (st.session_state.get('trad_401k_rate') + st.session_state.get('trad_401k_match_rate'))/100 * st.session_state.get('salary')
     annual_contributions['hsa'] = st.session_state.get('hsa') + st.session_state.get('hsa_match')
     annual_contributions['roth_ira'] = st.session_state.get('roth_ira')
