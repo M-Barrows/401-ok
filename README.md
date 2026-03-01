@@ -1,3 +1,7 @@
+<a href="https://www.hannahilea.com/blog/houseplant-programming">
+  <img alt="Static Badge" src="https://img.shields.io/badge/%F0%9F%AA%B4%20Houseplant%20-x?style=flat&amp;label=Project%20type&amp;color=1E1E1D">
+</a>
+
 # 401-OK
 
 This is a hyper-personalized application meant to facilitate my decision making around retirment contributions. I've made this with several assumptions that mirror my oppinions around investment priority (largely influenced by [The Money Guy's Financial Order of Operations (FOO)](https://moneyguy.com/guide/foo/). It is also simplified to only include the necessary complexity to model my own situation. 
