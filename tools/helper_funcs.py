@@ -3,6 +3,37 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 
+
+def get_bonus_amount():
+    return st.session_state.get('bonus', 7.5) / 100 * st.session_state.get('salary', 60000)
+
+
+def calculate_bonus_takehome():
+    bonus_amt = get_bonus_amount()
+    bonus_401k = (st.session_state.get('trad_401k_rate', 0) / 100) * bonus_amt
+    bonus_roth = (st.session_state.get('roth_401k_rate', 0) / 100) * bonus_amt
+    bonus_tax = bonus_amt * 0.22
+    return bonus_amt - bonus_tax - bonus_401k - bonus_roth
+
+
+def calculate_taxable_income_salary_only(**kwargs):
+    salary = kwargs.get('salary', st.session_state['salary'])
+    hsa = kwargs.get('hsa', st.session_state['hsa'])
+    donations = kwargs.get('donations', st.session_state['donations'])
+    misc_pre_tax_deductions = kwargs.get('misc_pre_tax_deductions', st.session_state['misc_pre_tax_deductions'])
+    trad_401k_rate = kwargs.get('trad_401k_rate', st.session_state.get('trad_401k_rate', 0)) / 100
+
+    st.session_state['taxable_income_salary_only'] = (
+        salary
+        - STANDARD_DEDUCTION
+        - (trad_401k_rate * salary)
+        - hsa
+        - misc_pre_tax_deductions
+        - donations
+    )
+    return st.session_state['taxable_income_salary_only']
+
+
 def calc_401k_match(savings_rate: float,match: float,limit: float):
     if savings_rate == 0: 
         return 0
@@ -83,7 +114,7 @@ def calc_remaining_salary(roth, hsa,trad_401k,roth_401k):
     return remaining
 
 def compute_net_monthly():
-    # Tax base includes salary + bonus for IRS liability
+    # Tax base includes salary + bonus for annual IRS liability
     ti = calculate_taxable_income(
         salary=st.session_state['salary'],
         bonus=st.session_state['bonus'],
@@ -95,9 +126,21 @@ def compute_net_monthly():
     st.session_state['income_tax'] = calculate_tax(ti) - (
         CHILD_TAX_CREDIT * st.session_state.get('children', 0)
     )
+
+    # Salary-only tax for regular paycheck (bonus taxed separately)
+    ti_salary_only = calculate_taxable_income_salary_only(
+        salary=st.session_state['salary'],
+        hsa=st.session_state['hsa'],
+        donations=st.session_state['donations'],
+        misc_pre_tax_deductions=st.session_state['misc_pre_tax_deductions'],
+        trad_401k_rate=st.session_state.get('trad_401k_rate',0)
+    )
+    salary_tax = calculate_tax(ti_salary_only) - (
+        CHILD_TAX_CREDIT * st.session_state.get('children', 0)
+    )
+
     pay_periods = st.session_state['pay_periods']
-    # Spread annual amounts across pay periods
-    tax_per_period = st.session_state['income_tax'] / pay_periods
+    tax_per_period = salary_tax / pay_periods
     roth_ira_per_period = st.session_state['roth_ira'] / pay_periods
     brokerage_per_period = st.session_state['brokerage'] / pay_periods
     hsa_per_period = st.session_state['hsa'] / pay_periods
@@ -197,26 +240,34 @@ def optimize_for_foo():
 
 def calculate_total_savings_dollars():
 
+    bonus_amt = get_bonus_amount()
+
     trad_401k_dollars = (st.session_state.get('trad_401k_rate',0) / 100) * st.session_state['salary']
+    trad_401k_from_bonus = (st.session_state.get('trad_401k_rate', 0) / 100) * bonus_amt
     trad_match_dollars = (st.session_state.get('trad_401k_match_rate',0)) / 100 * st.session_state['salary']
     roth_401k_dollars = (st.session_state['roth_401k_rate'] / 100) * st.session_state['salary']
+    roth_401k_from_bonus = (st.session_state['roth_401k_rate'] / 100) * bonus_amt
     roth_ira_dollars = st.session_state['roth_ira']
     hsa_dollars = st.session_state['hsa']
     hsa_match_dollars = st.session_state.get('hsa_match', 0)
     brokerage_dollars = st.session_state['brokerage']
     edu_529_dollars = st.session_state.get('edu_529', 0)
 
-    total_savings_dollars = (
+    savings_for_rate = (
         trad_401k_dollars
+        + trad_401k_from_bonus
         + trad_match_dollars
         + roth_401k_dollars
+        + roth_401k_from_bonus
         + roth_ira_dollars
         + hsa_dollars
         + hsa_match_dollars
         + brokerage_dollars
-        + edu_529_dollars
     )
-    return total_savings_dollars
+
+    total_savings_dollars = savings_for_rate + edu_529_dollars
+
+    return savings_for_rate, total_savings_dollars
 
 def calculate_total_takehome_paycheck():
     takehome_paycheck = (
@@ -289,9 +340,10 @@ def calculate_total_starting_balance():
     return total
 
 def calculate_annual_contributions_by_account():
+    bonus_amt = get_bonus_amount()
     annual_contributions = dict()
-    annual_contributions['roth_401k'] = (st.session_state.get('roth_401k_rate')/100) * st.session_state.get('salary')
-    annual_contributions['trad_401k'] = (st.session_state.get('trad_401k_rate') + st.session_state.get('trad_401k_match_rate'))/100 * st.session_state.get('salary')
+    annual_contributions['roth_401k'] = (st.session_state.get('roth_401k_rate')/100) * st.session_state.get('salary') + (st.session_state.get('roth_401k_rate')/100) * bonus_amt
+    annual_contributions['trad_401k'] = (st.session_state.get('trad_401k_rate') + st.session_state.get('trad_401k_match_rate'))/100 * st.session_state.get('salary') + (st.session_state.get('trad_401k_rate')/100) * bonus_amt
     annual_contributions['hsa'] = st.session_state.get('hsa') + st.session_state.get('hsa_match')
     annual_contributions['roth_ira'] = st.session_state.get('roth_ira')
     annual_contributions['brokerage'] = st.session_state.get('brokerage')
@@ -312,7 +364,10 @@ def get_current_balance_by_account():
 
 def nest_egg_forecast_by_account_df(config_dict:dict):
     full_df = pd.DataFrame()
+    include_529 = st.session_state.get('include_529_in_nest_egg', True)
     for account,details in config_dict.items():
+        if account == 'edu_529' and not include_529:
+            continue
         df = calculate_investment(
             details['start_balance'],
             details['contributions'],

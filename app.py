@@ -34,7 +34,6 @@ for key,value in DEFAULTS.items():
 pg = st.navigation({
     "Home": [st.Page('pages/overview/home.py',title="Home",icon="🏠",default=True)],
     "Retirement": [
-    # st.Page('pages/retirement/profile.py', title="Overview", icon="🏖"),
     st.Page('pages/retirement/accounts.py', title="Accounts", icon="🏦")
     ]
 })

@@ -81,7 +81,7 @@ def settings_container():
         st.session_state['total_salary'] = salary + st.session_state['bonus_amt']
 
     with c_pre_tax: 
-        trad_401k_rate = st.slider("401k Savings Rate", 0, max401k_perc ,key="trad_401k_rate")
+        trad_401k_rate = st.slider("401k Savings Rate", 0, max401k_perc, value=min(max401k_perc, st.session_state.get('trad_401k_rate', 0)), key="trad_401k_rate")
         st.number_input("401k Match Rate",key="trad_401k_match_rate")
         hsa = st.number_input("Annual HSA contributions", 0,MAX_HSA,key='hsa')
         hsa_match = st.number_input("Annual HSA employer match", 0,MAX_HSA,value= 1_000,key='hsa_match')
@@ -90,15 +90,16 @@ def settings_container():
                 st.error("HSA contributions exceed allowed maximum")
     
     with c_after_tax: 
-        roth_401k_rate = st.slider("Roth 401k Savings Rate", 0,max401k_perc,key='roth_401k_rate')
+        roth_401k_rate = st.slider("Roth 401k Savings Rate", 0, max401k_perc, value=min(max401k_perc, st.session_state.get('roth_401k_rate', 0)), key='roth_401k_rate')
         if ((trad_401k_rate + roth_401k_rate)/100) * salary > MAX_401K:
             with errors:
                 st.error("401k contributions exceed allowed maximum")
         roth_ira = st.number_input("Annual Roth IRA Contributions", 0, MAX_ROTH_IRA,key='roth_ira')
         brokerage = st.number_input("After Tax Brokerage Contributions", 0,key='brokerage')
         edu_529 = st.number_input("Annual 529 Savings", 0,value=3_600,key='edu_529')
+        st.checkbox("Include 529 in nest egg forecast", key='include_529_in_nest_egg')
 
-    with c_misc: 
+    with c_misc:
         children = st.number_input("Number of Children",0,10,value=0,key="children")
         donations = st.number_input("Annual Charitable Donations", 0, value=1_700,key='donations')
         misc_pre_tax_deductions = st.number_input("Pre Tax Payroll Deductions", 0,key='misc_pre_tax_deductions',help="Things like healthcare premiums. This should exclude any retirement contributions handled elsewhere in this tool")

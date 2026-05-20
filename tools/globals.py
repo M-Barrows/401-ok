@@ -20,7 +20,7 @@ ACCOUNT_KEYS = [
     'brokerage',
     'roth_ira'
 ]
-DEFAULTS = { 
+DEFAULTS = {
     'hsa':0,
     'hsa_match': 0,
     'roth_ira': 0,
@@ -28,6 +28,7 @@ DEFAULTS = {
     'trad_401k_match_rate': 3,
     'roth_401k_rate': 0,
     'edu_529': 0,
+    'include_529_in_nest_egg': True,
     'salary':60_000,
     'min_net_pay': 3_500,
     'misc_pre_tax_deductions':1_000,
