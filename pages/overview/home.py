@@ -6,9 +6,7 @@ from widgets.settings_expander import settings_container
 
 c_metrics, c_settings = st.columns(2)
 
-
-with c_settings: 
-    st.button("Optimize",on_click=optimize_for_foo,width="stretch",type="primary")
+with c_settings:
     settings_container()
 
 with c_metrics:
@@ -24,4 +22,3 @@ with c_save_amt:
     savings_amt_metric()
 with c_nest_egg_forecast:
     nest_egg_metric()
-

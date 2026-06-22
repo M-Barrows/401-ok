@@ -1,15 +1,31 @@
 MAX_401K = 24_500
 MAX_ROTH_IRA = 7_500
+ROTH_IRA_CATCHUP = 1_100
 MAX_HSA = 8_750
-STANDARD_DEDUCTION = 32_200
-CHILD_TAX_CREDIT = 2_200 
 
-BRACKETS = [ 
-    ( 24_800, 0.10), 
-    (100_800, 0.12), 
+ROTH_IRA_PHASE_OUT_SINGLE = (153_000, 168_000)
+ROTH_IRA_PHASE_OUT_JOINT = (242_000, 252_000)
+
+STANDARD_DEDUCTION = 32_200
+STANDARD_DEDUCTION_SINGLE = 16_100
+CHILD_TAX_CREDIT = 2_200
+
+BRACKETS_SINGLE = [
+    (12_400, 0.10),
+    (50_400, 0.12),
+    (105_700, 0.22),
+    (201_775, 0.24),
+    (256_225, 0.32),
+    (640_600, 0.35),
+]
+
+BRACKETS_JOINT = [
+    (24_800, 0.10),
+    (100_800, 0.12),
     (211_400, 0.22),
     (403_550, 0.24),
-    (512_450, 0.32)
+    (512_450, 0.32),
+    (768_700, 0.35),
 ]
 
 ACCOUNT_KEYS = [
@@ -20,34 +36,13 @@ ACCOUNT_KEYS = [
     'brokerage',
     'roth_ira'
 ]
-DEFAULTS = {
-    'hsa':0,
-    'hsa_match': 0,
-    'roth_ira': 0,
-    'trad_401k_rate': 15,
-    'trad_401k_match_rate': 3,
-    'roth_401k_rate': 0,
-    'edu_529': 0,
-    'include_529_in_nest_egg': True,
-    'salary':60_000,
-    'min_net_pay': 3_500,
-    'misc_pre_tax_deductions':1_000,
-    'misc_post_tax_deductions':1_000,
-    'brokerage':0,
-    'state_local_tax':5.0,
-    'taxable_income':0,
-    'children':0,
-    'years_to_retirement':25,
-    'roth_ira_start_balance':0,
-    'roth_ira_expected_return':8,
-    'hsa_start_balance':0,
-    'hsa_expected_return':8,
-    'roth_401k_start_balance':0,
-    'roth_401k_expected_return':8,
-    'trad_401k_start_balance':0,
-    'trad_401k_expected_return':8,
-    'edu_529_start_balance':0,
-    'edu_529_expected_return':8,
-    'brokerage_start_balance':0,
-    'brokerage_expected_return':8,
-}
+
+BRACKETS = BRACKETS_JOINT
+
+SPOUSE_ACCOUNT_KEYS = [
+    'roth_ira',
+    'hsa',
+    'roth_401k',
+    'trad_401k',
+    'brokerage'
+]

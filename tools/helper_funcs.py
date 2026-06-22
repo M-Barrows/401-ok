@@ -1,4 +1,4 @@
-from .globals import ACCOUNT_KEYS, STANDARD_DEDUCTION,BRACKETS,CHILD_TAX_CREDIT,MAX_HSA,MAX_ROTH_IRA,MAX_401K
+from .globals import ACCOUNT_KEYS, SPOUSE_ACCOUNT_KEYS, STANDARD_DEDUCTION, STANDARD_DEDUCTION_SINGLE, BRACKETS_JOINT, BRACKETS_SINGLE, CHILD_TAX_CREDIT, MAX_HSA, MAX_ROTH_IRA, MAX_401K, ROTH_IRA_PHASE_OUT_SINGLE, ROTH_IRA_PHASE_OUT_JOINT, ROTH_IRA_CATCHUP
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -6,6 +6,56 @@ from datetime import datetime
 
 def get_bonus_amount():
     return st.session_state.get('bonus', 7.5) / 100 * st.session_state.get('salary', 60000)
+
+
+def get_spouse_bonus_amount():
+    return st.session_state.get('spouse_bonus', 7.5) / 100 * st.session_state.get('spouse_salary', 60000)
+
+
+def get_effective_magi(spouse=False):
+    primary_magi = (
+        st.session_state['salary']
+        + get_bonus_amount()
+        - (st.session_state.get('trad_401k_rate', 0) / 100 * st.session_state['salary'])
+        - st.session_state.get('hsa', 0)
+        - st.session_state.get('misc_pre_tax_deductions', 0)
+        - st.session_state.get('donations', 0)
+    )
+    if not st.session_state.get('spousal_enabled', False):
+        return max(0, primary_magi)
+
+    spouse_magi = (
+        st.session_state.get('spouse_salary', 0)
+        + get_spouse_bonus_amount()
+        - (st.session_state.get('spouse_trad_401k_rate', 0) / 100 * st.session_state.get('spouse_salary', 0))
+        - st.session_state.get('spouse_hsa', 0)
+        - st.session_state.get('spouse_misc_pre_tax_deductions', 0)
+        - st.session_state.get('spouse_donations', 0)
+    )
+
+    if spouse and st.session_state.get('filing_jointly', True):
+        return max(0, primary_magi + spouse_magi)
+    elif spouse:
+        return max(0, spouse_magi)
+    else:
+        return max(0, primary_magi)
+
+
+def calculate_roth_ira_max(magi, age, filing_jointly):
+    per_person_base = MAX_ROTH_IRA + (ROTH_IRA_CATCHUP if age >= 50 else 0)
+
+    phase_out_start, phase_out_end = (
+        ROTH_IRA_PHASE_OUT_JOINT if filing_jointly else ROTH_IRA_PHASE_OUT_SINGLE
+    )
+
+    if magi < phase_out_start:
+        return per_person_base
+    elif magi >= phase_out_end:
+        return 0
+    else:
+        reduction_ratio = (magi - phase_out_start) / (phase_out_end - phase_out_start)
+        reduced = per_person_base * (1 - reduction_ratio)
+        return max(0, int(reduced))
 
 
 def calculate_bonus_takehome():
@@ -22,10 +72,11 @@ def calculate_taxable_income_salary_only(**kwargs):
     donations = kwargs.get('donations', st.session_state['donations'])
     misc_pre_tax_deductions = kwargs.get('misc_pre_tax_deductions', st.session_state['misc_pre_tax_deductions'])
     trad_401k_rate = kwargs.get('trad_401k_rate', st.session_state.get('trad_401k_rate', 0)) / 100
+    std_ded = kwargs.get('std_deduction', STANDARD_DEDUCTION)
 
     st.session_state['taxable_income_salary_only'] = (
         salary
-        - STANDARD_DEDUCTION
+        - std_ded
         - (trad_401k_rate * salary)
         - hsa
         - misc_pre_tax_deductions
@@ -34,7 +85,7 @@ def calculate_taxable_income_salary_only(**kwargs):
     return st.session_state['taxable_income_salary_only']
 
 
-def calc_401k_match(savings_rate: float,match: float,limit: float):
+def calc_401k_match(savings_rate: float, match: float, limit: float):
     if savings_rate == 0: 
         return 0
     if savings_rate < limit: 
@@ -42,38 +93,29 @@ def calc_401k_match(savings_rate: float,match: float,limit: float):
     else:
         return match * limit
 
+
 def calculate_taxable_income(**kwargs):
     salary = kwargs.get('salary', st.session_state['salary'])
     bonus = kwargs.get('bonus', st.session_state['bonus'])
     hsa = kwargs.get('hsa', st.session_state['hsa'])
     donations = kwargs.get('donations', st.session_state['donations'])
     misc_pre_tax_deductions = kwargs.get('misc_pre_tax_deductions', st.session_state['misc_pre_tax_deductions'])
-    trad_401k_rate = kwargs.get('trad_401k_rate', st.session_state.get('trad_401k_rate',0))/100
-    bonus_amount = bonus/100*salary
-    st.session_state['taxable_income'] = (
+    trad_401k_rate = kwargs.get('trad_401k_rate', st.session_state.get('trad_401k_rate', 0)) / 100
+    std_ded = kwargs.get('std_deduction', STANDARD_DEDUCTION)
+    bonus_amount = bonus / 100 * salary if bonus else 0
+    taxable = (
         (salary + bonus_amount)
-        - STANDARD_DEDUCTION
+        - std_ded
         - (trad_401k_rate * (salary + bonus_amount))
         - hsa
         - misc_pre_tax_deductions
         - donations
     )
-    return st.session_state['taxable_income']
+    st.session_state['taxable_income'] = taxable
+    return taxable
 
-def calculate_tax(taxable_income,brackets=BRACKETS):
-    """
-    Calculate the total tax owed given a salary and tax brackets.
 
-    Parameters:
-    taxable_income (float): The income to calculate tax on.
-    brackets (list of tuples): Each tuple is (limit, rate), where:
-        - limit is the upper bound of that bracket (None for no limit).
-        - rate is the tax rate for that bracket (as a decimal, e.g., 0.22 for 22%).
-
-    Returns:
-    float: The total tax owed.
-    """
-
+def calculate_tax(taxable_income, brackets=BRACKETS_JOINT):
     tax = 0.0
     previous_limit = 0.0
     for limit, rate in brackets:
@@ -83,168 +125,127 @@ def calculate_tax(taxable_income,brackets=BRACKETS):
         else:
             tax += (limit - previous_limit) * rate
             previous_limit = limit
-    
-    for i in [0.062, 0.0145, st.session_state['state_local_tax']/100]:
-        # Social Security, Medicare, and State/Local taxes
+
+    for i in [0.062, 0.0145, st.session_state['state_local_tax'] / 100]:
         tax += taxable_income * i
     return tax
 
 
-
-def calc_remaining_salary(roth, hsa,trad_401k,roth_401k):
-    extras = (
-            (st.session_state['min_net_pay']* 12)
-            - st.session_state['misc_pre_tax_deductions']
-            - st.session_state['misc_post_tax_deductions']
-            - st.session_state['donations']
-            - st.session_state['edu_529']
-    ) 
-    trad_401k_rate = trad_401k/(st.session_state['salary']+st.session_state['bonus_amt'])
-    taxable_income = calculate_taxable_income(hsa=hsa,trad_401k_rate=trad_401k_rate)
-    income_tax = calculate_tax(taxable_income)
-    remaining = (
-            st.session_state['salary']
-            - extras
-            - income_tax
-            - hsa
-            - trad_401k
-            - roth
-            - roth_401k
-    )
-    return remaining
-
 def compute_net_monthly():
-    # Tax base includes salary + bonus for annual IRS liability
-    ti = calculate_taxable_income(
-        salary=st.session_state['salary'],
-        bonus=st.session_state['bonus'],
-        hsa=st.session_state['hsa'],
-        donations=st.session_state['donations'],
-        misc_pre_tax_deductions=st.session_state['misc_pre_tax_deductions'],
-        trad_401k_rate=st.session_state.get('trad_401k_rate',0)
-    )
-    st.session_state['income_tax'] = calculate_tax(ti) - (
+    spousal = st.session_state.get('spousal_enabled', False)
+    filing_jointly = st.session_state.get('filing_jointly', True) if spousal else True
+    brackets = BRACKETS_JOINT if filing_jointly else BRACKETS_SINGLE
+    std_ded = STANDARD_DEDUCTION if filing_jointly else STANDARD_DEDUCTION_SINGLE
+    pay_periods = st.session_state.get('pay_periods', 26)
+
+    primary_salary = st.session_state.get('salary', 60000)
+    primary_bonus = get_bonus_amount()
+    spouse_salary = st.session_state.get('spouse_salary', 0) if spousal else 0
+    spouse_bonus = get_spouse_bonus_amount() if spousal else 0
+
+    total_income = primary_salary + primary_bonus + spouse_salary + spouse_bonus
+
+    trad_401k_dollars = (st.session_state.get('trad_401k_rate', 0) / 100) * primary_salary
+    hsa_total = st.session_state.get('hsa', 0)
+    misc_pre = st.session_state.get('misc_pre_tax_deductions', 0)
+    donations = st.session_state.get('donations', 0)
+
+    spouse_trad = 0
+    spouse_hsa = 0
+    spouse_misc_pre = 0
+    spouse_donations = 0
+    if spousal:
+        spouse_trad = (st.session_state.get('spouse_trad_401k_rate', 0) / 100) * spouse_salary
+        spouse_hsa = st.session_state.get('spouse_hsa', 0)
+        spouse_misc_pre = st.session_state.get('spouse_misc_pre_tax_deductions', 0)
+        spouse_donations = st.session_state.get('spouse_donations', 0)
+
+    total_pre_tax = trad_401k_dollars + hsa_total + misc_pre + donations \
+                    + spouse_trad + spouse_hsa + spouse_misc_pre + spouse_donations
+
+    ti = total_income - std_ded - total_pre_tax
+    income_tax = calculate_tax(ti, brackets) - (
         CHILD_TAX_CREDIT * st.session_state.get('children', 0)
     )
+    st.session_state['income_tax'] = income_tax
 
-    # Salary-only tax for regular paycheck (bonus taxed separately)
-    ti_salary_only = calculate_taxable_income_salary_only(
-        salary=st.session_state['salary'],
-        hsa=st.session_state['hsa'],
-        donations=st.session_state['donations'],
-        misc_pre_tax_deductions=st.session_state['misc_pre_tax_deductions'],
-        trad_401k_rate=st.session_state.get('trad_401k_rate',0)
+    if spousal:
+        st.session_state['spouse_income_tax'] = income_tax
+
+    roth_ira_pp = st.session_state['roth_ira'] / pay_periods
+    brokerage_pp = st.session_state['brokerage'] / pay_periods
+    hsa_pp = st.session_state['hsa'] / pay_periods
+    misc_post_pp = st.session_state['misc_post_tax_deductions'] / pay_periods
+    misc_pre_pp = st.session_state['misc_pre_tax_deductions'] / pay_periods
+    donations_pp = st.session_state.get('donations', 0) / pay_periods
+    edu_529_pp = st.session_state['edu_529'] / pay_periods
+    trad_pp = (st.session_state['trad_401k_rate'] / 100) * st.session_state['salary'] / pay_periods
+    roth_pp = (st.session_state['roth_401k_rate'] / 100) * st.session_state['salary'] / pay_periods
+
+    spouse_roth_ira_pp = 0
+    spouse_brokerage_pp = 0
+    spouse_hsa_pp = 0
+    spouse_misc_post_pp = 0
+    spouse_misc_pre_pp = 0
+    spouse_donations_pp = 0
+    spouse_trad_pp = 0
+    spouse_roth_pp = 0
+    spouse_salary_pp = 0
+    if spousal:
+        spouse_roth_ira_pp = st.session_state.get('spouse_roth_ira', 0) / pay_periods
+        spouse_brokerage_pp = st.session_state.get('spouse_brokerage', 0) / pay_periods
+        spouse_hsa_pp = st.session_state.get('spouse_hsa', 0) / pay_periods
+        spouse_misc_post_pp = st.session_state.get('spouse_misc_post_tax_deductions', 0) / pay_periods
+        spouse_misc_pre_pp = st.session_state.get('spouse_misc_pre_tax_deductions', 0) / pay_periods
+        spouse_donations_pp = st.session_state.get('spouse_donations', 0) / pay_periods
+        spouse_trad_pp = (st.session_state.get('spouse_trad_401k_rate', 0) / 100) * spouse_salary / pay_periods
+        spouse_roth_pp = (st.session_state.get('spouse_roth_401k_rate', 0) / 100) * spouse_salary / pay_periods
+        spouse_salary_pp = spouse_salary / pay_periods
+
+    tax_pp = income_tax / pay_periods
+
+    primary_takehome_pp = (
+        primary_salary / pay_periods
+        - trad_pp - roth_pp
+        - roth_ira_pp - brokerage_pp - hsa_pp
+        - tax_pp
+        - misc_post_pp - misc_pre_pp
+        - donations_pp - edu_529_pp
     )
-    salary_tax = calculate_tax(ti_salary_only) - (
-        CHILD_TAX_CREDIT * st.session_state.get('children', 0)
-    )
 
-    pay_periods = st.session_state['pay_periods']
-    tax_per_period = salary_tax / pay_periods
-    roth_ira_per_period = st.session_state['roth_ira'] / pay_periods
-    brokerage_per_period = st.session_state['brokerage'] / pay_periods
-    hsa_per_period = st.session_state['hsa'] / pay_periods
-    misc_post_per_period = st.session_state['misc_post_tax_deductions'] / pay_periods
-    misc_pre_per_period = st.session_state['misc_pre_tax_deductions'] / pay_periods
-    donations_per_period = st.session_state.get('donations', 0) / pay_periods
+    spouse_takehome_pp = 0
+    if spousal and filing_jointly:
+        spouse_takehome_pp = (
+            spouse_salary_pp
+            - spouse_trad_pp - spouse_roth_pp
+            - spouse_roth_ira_pp - spouse_brokerage_pp - spouse_hsa_pp
+            - spouse_misc_post_pp - spouse_misc_pre_pp
+            - spouse_donations_pp
+        )
+    elif spousal and not filing_jointly:
+        spouse_ti = spouse_salary + spouse_bonus - std_ded - (
+            spouse_trad + spouse_hsa + spouse_misc_pre + spouse_donations
+        )
+        spouse_tax = calculate_tax(spouse_ti, brackets)
+        spouse_tax_pp = spouse_tax / pay_periods
+        spouse_takehome_pp = (
+            spouse_salary_pp
+            - spouse_trad_pp - spouse_roth_pp
+            - spouse_roth_ira_pp - spouse_brokerage_pp - spouse_hsa_pp
+            - spouse_tax_pp
+            - spouse_misc_post_pp - spouse_misc_pre_pp
+            - spouse_donations_pp
+        )
 
-    salary_per_period = st.session_state['salary'] / pay_periods
-    edu_529_per_period = st.session_state['edu_529'] / pay_periods
-    trad_per_period = (st.session_state['trad_401k_rate'] / 100) * st.session_state['salary'] / pay_periods
-    roth_per_period = (st.session_state['roth_401k_rate'] / 100) * st.session_state['salary'] / pay_periods
+    return (primary_takehome_pp + spouse_takehome_pp) * 2
 
-    takehome_per_period = (
-        salary_per_period
-        - trad_per_period
-        - roth_per_period
-        - roth_ira_per_period
-        - brokerage_per_period
-        - hsa_per_period
-        - tax_per_period
-        - misc_post_per_period
-        - misc_pre_per_period
-        - donations_per_period
-        - edu_529_per_period
-    )
-    return takehome_per_period * 2  # two pay periods ≈ one month
-
-def optimize_for_foo():
-    def maximize_contribution_dollars(max_dollars, apply_fn):
-        lo, hi = 0, int(max(0, max_dollars))
-        best = 0
-        while lo <= hi:
-            mid = (lo + hi) // 2
-            apply_fn(mid)
-            net_monthly = compute_net_monthly()
-            if net_monthly >= st.session_state['min_net_pay']:
-                best = mid
-                lo = mid + 1
-            else:
-                hi = mid - 1
-        apply_fn(best)
-        return best
-
-    # Reset buckets
-    st.session_state['hsa'] = 0
-    st.session_state['roth_ira'] = 0
-    st.session_state['trad_401k_rate'] = 0
-    st.session_state['roth_401k_rate'] = 0
-    compute_net_monthly()
-
-    SAL = st.session_state['salary']
-
-    # 1) HSA
-    hsa_remaining = max(0, MAX_HSA - st.session_state.get('hsa_match', 0))
-    maximize_contribution_dollars(hsa_remaining, lambda d: st.session_state.update({'hsa': int(d)}))
-
-    # 2) Roth IRA
-    maximize_contribution_dollars(MAX_ROTH_IRA, lambda d: st.session_state.update({'roth_ira': int(d)}))
-
-    # 3) Traditional 401k search in integer percents
-    def net_ok_with_trad_percent(pct_int):
-        trad_dollars = (pct_int / 100) * SAL
-        roth_dollars = (st.session_state['roth_401k_rate'] / 100) * SAL
-        if trad_dollars + roth_dollars > MAX_401K:
-            return False
-        st.session_state['trad_401k_rate'] = pct_int
-        nm = compute_net_monthly()
-        return nm >= st.session_state['min_net_pay']
-
-    lo, hi = 0, 25
-    best_pct = 0
-    while lo <= hi:
-        mid = (lo + hi) // 2
-        if net_ok_with_trad_percent(mid):
-            best_pct = mid
-            lo = mid + 1
-        else:
-            hi = mid - 1
-    st.session_state['trad_401k_rate'] = best_pct
-
-    # Final sweep with debug
-    pct = st.session_state['trad_401k_rate']
-    while pct < 25:
-        next_pct = pct + 1
-        next_dollars = (next_pct / 100) * SAL
-        roth_dollars = (st.session_state['roth_401k_rate'] / 100) * SAL
-        total_dollars = next_dollars + roth_dollars
-        if total_dollars > MAX_401K:
-            break
-        st.session_state['trad_401k_rate'] = next_pct
-        nm = compute_net_monthly()
-        if nm >= st.session_state['min_net_pay']:
-            pct = next_pct
-        else:
-            st.session_state['trad_401k_rate'] = pct
-            break
 
 def calculate_total_savings_dollars():
-
     bonus_amt = get_bonus_amount()
 
-    trad_401k_dollars = (st.session_state.get('trad_401k_rate',0) / 100) * st.session_state['salary']
+    trad_401k_dollars = (st.session_state.get('trad_401k_rate', 0) / 100) * st.session_state['salary']
     trad_401k_from_bonus = (st.session_state.get('trad_401k_rate', 0) / 100) * bonus_amt
-    trad_match_dollars = (st.session_state.get('trad_401k_match_rate',0)) / 100 * st.session_state['salary']
+    trad_match_dollars = (st.session_state.get('trad_401k_match_rate', 0)) / 100 * st.session_state['salary']
     roth_401k_dollars = (st.session_state['roth_401k_rate'] / 100) * st.session_state['salary']
     roth_401k_from_bonus = (st.session_state['roth_401k_rate'] / 100) * bonus_amt
     roth_ira_dollars = st.session_state['roth_ira']
@@ -253,55 +254,79 @@ def calculate_total_savings_dollars():
     brokerage_dollars = st.session_state['brokerage']
     edu_529_dollars = st.session_state.get('edu_529', 0)
 
-    savings_for_rate = (
-        trad_401k_dollars
-        + trad_401k_from_bonus
-        + trad_match_dollars
-        + roth_401k_dollars
-        + roth_401k_from_bonus
-        + roth_ira_dollars
-        + hsa_dollars
-        + hsa_match_dollars
-        + brokerage_dollars
+    primary_savings = (
+        trad_401k_dollars + trad_401k_from_bonus + trad_match_dollars
+        + roth_401k_dollars + roth_401k_from_bonus
+        + roth_ira_dollars + hsa_dollars + hsa_match_dollars + brokerage_dollars
     )
 
-    total_savings_dollars = savings_for_rate + edu_529_dollars
+    spouse_savings = 0
+    if st.session_state.get('spousal_enabled', False):
+        spouse_bonus_amt = get_spouse_bonus_amount()
+        s_salary = st.session_state.get('spouse_salary', 0)
+        s_trad = (st.session_state.get('spouse_trad_401k_rate', 0) / 100) * s_salary
+        s_trad_bonus = (st.session_state.get('spouse_trad_401k_rate', 0) / 100) * spouse_bonus_amt
+        s_match = (st.session_state.get('spouse_trad_401k_match_rate', 0) / 100) * s_salary
+        s_roth = (st.session_state.get('spouse_roth_401k_rate', 0) / 100) * s_salary
+        s_roth_bonus = (st.session_state.get('spouse_roth_401k_rate', 0) / 100) * spouse_bonus_amt
+        s_roth_ira = st.session_state.get('spouse_roth_ira', 0)
+        s_hsa = st.session_state.get('spouse_hsa', 0)
+        s_hsa_match = st.session_state.get('spouse_hsa_match', 0)
+        s_brokerage = st.session_state.get('spouse_brokerage', 0)
+        spouse_savings = (
+            s_trad + s_trad_bonus + s_match
+            + s_roth + s_roth_bonus
+            + s_roth_ira + s_hsa + s_hsa_match + s_brokerage
+        )
 
-    return savings_for_rate, total_savings_dollars
+    savings_for_rate = primary_savings + spouse_savings
+    include_529 = st.session_state.get('include_529_in_nest_egg', True)
+    total_savings_dollars = savings_for_rate + (edu_529_dollars if include_529 else 0)
+    savings_529 = edu_529_dollars if include_529 else 0
+
+    return savings_for_rate, total_savings_dollars, savings_529
+
 
 def calculate_total_takehome_paycheck():
-    takehome_paycheck = (
+    primary = (
         st.session_state['salary']
-        - (st.session_state['trad_401k_rate']/100 * st.session_state['salary'])
-        - (st.session_state['roth_401k_rate']/100 * st.session_state['salary'])
+        - (st.session_state['trad_401k_rate'] / 100 * st.session_state['salary'])
+        - (st.session_state['roth_401k_rate'] / 100 * st.session_state['salary'])
         - st.session_state['roth_ira']
         - st.session_state['brokerage']
         - st.session_state['hsa']
-        - st.session_state['income_tax']   # tax is still based on salary+bonus
+        - st.session_state['income_tax']
         - st.session_state['misc_post_tax_deductions']
         - st.session_state['misc_pre_tax_deductions']
         - st.session_state['donations']
     ) / st.session_state['pay_periods']
-    return takehome_paycheck
+
+    if not st.session_state.get('spousal_enabled', False):
+        return primary
+
+    spouse = (
+        st.session_state.get('spouse_salary', 0)
+        - (st.session_state.get('spouse_trad_401k_rate', 0) / 100 * st.session_state.get('spouse_salary', 0))
+        - (st.session_state.get('spouse_roth_401k_rate', 0) / 100 * st.session_state.get('spouse_salary', 0))
+        - st.session_state.get('spouse_roth_ira', 0)
+        - st.session_state.get('spouse_brokerage', 0)
+        - st.session_state.get('spouse_hsa', 0)
+        - st.session_state.get('spouse_income_tax', 0)
+        - st.session_state.get('spouse_misc_post_tax_deductions', 0)
+        - st.session_state.get('spouse_misc_pre_tax_deductions', 0)
+        - st.session_state.get('spouse_donations', 0)
+    ) / st.session_state['pay_periods']
+
+    return primary + spouse
+
+
+def optimize_for_foo():
+    pass
+
 
 def calculate_investment(starting_balance: int, annual_contribution, years_to_retirement: 
 int = 25, growth_rate: int = 8):
-    """
-    Calculate the future value of an investment.
 
-    Parameters:
-    starting_balance (int): The initial balance of the investment.
-    annual_contribution (int): The amount contributed to the investment each year.
-    years_to_retirement (int): The number of years until retirement. Defaults to 25.
-    growth_rate (int): The rate at which the investment grows each year. Defaults to 8.
-
-    Returns:
-    pandas.DataFrame: A DataFrame containing the year, starting balance, cumulative 
-contributions, 
-                     cumulative growth, and total values for each year.
-    """
-
-    # Create a list of years
     this_year = datetime.now().year
     years = range(this_year, this_year + years_to_retirement)
 
@@ -315,8 +340,6 @@ contributions,
         growth[i] = growth[i - 1] + (total[i - 1] * growth_rate / 100)
         total[i] = start_balance[i] + contributions[i] + growth[i]
 
-
-    # Create a pandas DataFrame from the lists
     df = pd.DataFrame({
         'Year': years,
         'Starting Balance': start_balance,
@@ -337,9 +360,32 @@ def calculate_total_starting_balance():
         + st.session_state.get('edu_529_start_balance')
         + st.session_state.get('brokerage_start_balance')
      )
+    if st.session_state.get('spousal_enabled', False):
+        total += (
+            st.session_state.get('spouse_roth_ira_start_balance')
+            + st.session_state.get('spouse_hsa_start_balance')
+            + st.session_state.get('spouse_roth_401k_start_balance')
+            + st.session_state.get('spouse_trad_401k_start_balance')
+            + st.session_state.get('spouse_brokerage_start_balance')
+        )
     return total
 
-def calculate_annual_contributions_by_account():
+
+def calculate_annual_contributions_by_account(spouse=False):
+    if spouse:
+        bonus_amt = get_spouse_bonus_amount()
+        salary = st.session_state.get('spouse_salary', 0)
+        trad_rate = st.session_state.get('spouse_trad_401k_rate', 0)
+        roth_rate = st.session_state.get('spouse_roth_401k_rate', 0)
+        match_rate = st.session_state.get('spouse_trad_401k_match_rate', 0)
+        return {
+            'roth_401k': (roth_rate / 100) * salary + (roth_rate / 100) * bonus_amt,
+            'trad_401k': (trad_rate + match_rate) / 100 * salary + (trad_rate / 100) * bonus_amt,
+            'hsa': st.session_state.get('spouse_hsa', 0) + st.session_state.get('spouse_hsa_match', 0),
+            'roth_ira': st.session_state.get('spouse_roth_ira', 0),
+            'brokerage': st.session_state.get('spouse_brokerage', 0),
+        }
+
     bonus_amt = get_bonus_amount()
     annual_contributions = dict()
     annual_contributions['roth_401k'] = (st.session_state.get('roth_401k_rate')/100) * st.session_state.get('salary') + (st.session_state.get('roth_401k_rate')/100) * bonus_amt
@@ -350,28 +396,39 @@ def calculate_annual_contributions_by_account():
     annual_contributions['edu_529'] = st.session_state.get('edu_529')
     return annual_contributions
 
-def get_expected_returns_by_account():
+
+def get_expected_returns_by_account(spouse=False):
+    keys = SPOUSE_ACCOUNT_KEYS if spouse else ACCOUNT_KEYS
+    prefix = 'spouse_' if spouse else ''
     expected_returns = dict()
-    for account in ACCOUNT_KEYS:
-        expected_returns[account] = st.session_state.get(f'{account}_expected_return')
+    for account in keys:
+        expected_returns[account] = st.session_state.get(f'{prefix}{account}_expected_return')
     return expected_returns
 
-def get_current_balance_by_account():
+
+def get_current_balance_by_account(spouse=False):
+    keys = SPOUSE_ACCOUNT_KEYS if spouse else ACCOUNT_KEYS
+    prefix = 'spouse_' if spouse else ''
     start_balances = dict()
-    for account in ACCOUNT_KEYS:
-        start_balances[account] = st.session_state.get(f'{account}_start_balance')
+    for account in keys:
+        start_balances[account] = st.session_state.get(f'{prefix}{account}_start_balance')
     return start_balances
 
-def nest_egg_forecast_by_account_df(config_dict:dict):
+
+def nest_egg_forecast_by_account_df(config_dict: dict, years_to_retirement=None):
     full_df = pd.DataFrame()
     include_529 = st.session_state.get('include_529_in_nest_egg', True)
-    for account,details in config_dict.items():
+    if years_to_retirement is None:
+        years_to_retirement = st.session_state.get('years_to_retirement', 25)
+    for account, details in config_dict.items():
         if account == 'edu_529' and not include_529:
+            continue
+        if 'edu_529' in account and not include_529:
             continue
         df = calculate_investment(
             details['start_balance'],
             details['contributions'],
-            st.session_state.get('years_to_retirement',25),
+            years_to_retirement,
             details['expected_return'],
         )
         df['Account'] = account
