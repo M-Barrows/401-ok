@@ -10,7 +10,7 @@ def paycheck_metric():
     return st.metric("💸 Your Paycheck",
                      f"~ ${monthly_paycheck:,.0f}",
                      f"~ ${annual_total:,.0f} / yr",
-                     help=f"${bonus_takehome:,.0f} bonus takehome after maxing 401k, HSA, Roth IRA.",
+                     help=f"Yearly total includes ${bonus_takehome:,.0f} bonus takehome payment(s)",
                      border=True,
                      height="stretch",
                      delta_color="off",

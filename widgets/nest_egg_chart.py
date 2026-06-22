@@ -47,69 +47,91 @@ def nest_egg_forecast_chart():
             else:
                 combined = True
 
-            charts = []
+            # Recompute both with same year range for proper combining
+            p2 = nest_egg_forecast_by_account_df({
+                account: {
+                    'start_balance': get_current_balance_by_account()[account],
+                    'contributions': contributions.get(account, 0),
+                    'expected_return': get_expected_returns_by_account()[account],
+                }
+                for account in ACCOUNT_KEYS
+            }, years_to_retirement=max_years) if spousal else primary_df
+
+            s2 = nest_egg_forecast_by_account_df({
+                account: {
+                    'start_balance': get_current_balance_by_account(spouse=True)[account],
+                    'contributions': spouse_contributions.get(account, 0),
+                    'expected_return': get_expected_returns_by_account(spouse=True)[account],
+                }
+                for account in ['roth_ira', 'hsa', 'roth_401k', 'trad_401k', 'brokerage']
+            }, years_to_retirement=max_years) if spousal else pd.DataFrame()
+
+            yearly = pd.DataFrame()
+
+            # Build chart data: (label, yearly_agg_df, account_detail_df)
+            chart_sets = []
             if combined:
-                if not primary_df.empty and not spouse_df.empty:
-                    p2 = nest_egg_forecast_by_account_df({
-                        account: {
-                            'start_balance': get_current_balance_by_account()[account],
-                            'contributions': contributions.get(account, 0),
-                            'expected_return': get_expected_returns_by_account()[account],
-                        }
-                        for account in ACCOUNT_KEYS
-                    }, years_to_retirement=max_years)
-                    s2 = nest_egg_forecast_by_account_df({
-                        account: {
-                            'start_balance': get_current_balance_by_account(spouse=True)[account],
-                            'contributions': spouse_contributions.get(account, 0),
-                            'expected_return': get_expected_returns_by_account(spouse=True)[account],
-                        }
-                        for account in ['roth_ira', 'hsa', 'roth_401k', 'trad_401k', 'brokerage']
-                    }, years_to_retirement=max_years)
-                    chart_df = p2._append(s2, ignore_index=True)
-                elif not primary_df.empty:
-                    chart_df = primary_df
-                elif not spouse_df.empty:
-                    chart_df = spouse_df
+                if not p2.empty and not s2.empty:
+                    p_sum = p2.groupby('Year')[['Starting Balance', 'Contributions', 'Growth']].sum()
+                    s_sum = s2.groupby('Year')[['Starting Balance', 'Contributions', 'Growth']].sum()
+                    yearly = p_sum.add(s_sum, fill_value=0).reset_index()
+                    detail = pd.concat([p2, s2], ignore_index=True)
+                elif not p2.empty:
+                    yearly = p2.groupby('Year')[['Starting Balance', 'Contributions', 'Growth']].sum().reset_index()
+                    detail = p2
+                elif not s2.empty:
+                    yearly = s2.groupby('Year')[['Starting Balance', 'Contributions', 'Growth']].sum().reset_index()
+                    detail = s2
                 else:
-                    chart_df = pd.DataFrame()
-                charts = [("Combined", chart_df)]
+                    yearly = pd.DataFrame()
+                    detail = pd.DataFrame()
+                chart_sets = [("Combined", yearly, detail)]
             else:
                 if not primary_df.empty:
-                    charts.append((primary_name, primary_df))
+                    p_yearly = primary_df.groupby('Year')[['Starting Balance', 'Contributions', 'Growth']].sum().reset_index()
+                    chart_sets.append((primary_name, p_yearly, primary_df))
                 if not spouse_df.empty:
-                    charts.append((spouse_name, spouse_df))
+                    s_yearly = spouse_df.groupby('Year')[['Starting Balance', 'Contributions', 'Growth']].sum().reset_index()
+                    chart_sets.append((spouse_name, s_yearly, spouse_df))
 
-            if charts:
+            if chart_sets:
                 t_contributions, t_account = st.tabs(['Contributions', 'Account'])
 
                 with t_contributions:
-                    for label, df in charts:
-                        if not df.empty:
-                            if len(charts) > 1:
+                    for label, yearly, _ in chart_sets:
+                        if not yearly.empty:
+                            if len(chart_sets) > 1:
                                 st.subheader(label)
-                            chart_df_grouped = df.groupby(['Year'])[['Starting Balance', 'Contributions', 'Growth']].sum().reset_index()
-                            st.bar_chart(data=chart_df_grouped, x='Year', y=['Starting Balance', 'Contributions', 'Growth'], sort=False)
+                            clean = pd.DataFrame({
+                                'Year': yearly['Year'].values,
+                                'Starting Balance': yearly['Starting Balance'].values.astype(float),
+                                'Contributions': yearly['Contributions'].values.astype(float),
+                                'Growth': yearly['Growth'].values.astype(float),
+                            })
+                            st.bar_chart(data=clean.set_index('Year'))
 
                 with t_account:
-                    for label, df in charts:
-                        if not df.empty:
-                            if len(charts) > 1:
+                    for label, _, detail in chart_sets:
+                        if not detail.empty:
+                            if len(chart_sets) > 1:
                                 st.subheader(label)
-                            df = df.copy()
-                            df['Account'] = df['Account'].apply(lambda X: X.replace('_', ' ').title())
-                            st.bar_chart(data=df, x='Year', y='Total', color='Account', sort='Total')
+                            plot_df = detail.copy()
+                            plot_df['Account'] = plot_df['Account'].apply(lambda X: X.replace('_', ' ').title())
+                            grouped = plot_df.groupby(['Year', 'Account'])['Total'].sum().reset_index()
+                            pivot = grouped.pivot_table(index='Year', columns='Account', values='Total', aggfunc='sum').fillna(0)
+                            st.bar_chart(data=pivot)
 
         with c_retirement_journey_commentary:
-            if combined and not chart_df.empty:
-                st.write(f"**Ending Balance: ${'{:,.0f}'.format(chart_df.groupby('Year').sum().iloc[-1]['Total'])}**")
+            if combined and not yearly.empty:
+                total_row = yearly[['Starting Balance', 'Contributions', 'Growth']].sum(axis=1)
+                st.write(f"**Ending Balance: ${'{:,.0f}'.format(total_row.iloc[-1])}**")
             elif not combined:
-                for label, df in charts:
-                    if not df.empty:
-                        final_val = df.groupby('Year').sum().iloc[-1]['Total']
-                        st.write(f"**{label}: ${'{:,.0f}'.format(final_val)}**")
+                for label, ydf, _ in chart_sets:
+                    if not ydf.empty:
+                        total_row = ydf[['Starting Balance', 'Contributions', 'Growth']].sum(axis=1)
+                        st.write(f"**{label}: ${'{:,.0f}'.format(total_row.iloc[-1])}**")
 
-            if combined and not chart_df.empty:
+            if combined and not yearly.empty:
                 primary_age = st.session_state.get('primary_age', 35)
                 retirement_age_primary = primary_age + primary_years
                 if spousal:

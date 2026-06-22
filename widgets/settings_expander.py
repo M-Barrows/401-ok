@@ -136,7 +136,7 @@ def settings_container():
         spouse_years_to_retirement: {st.session_state.get('spouse_years_to_retirement', 25)}    # int
         ```
         """
-    max401k_perc = int((MAX_401K*100)/(st.session_state['salary']*100)*100)
+    max401k_perc = int(min(100, MAX_401K / st.session_state['salary'] * 100))
 
     errors = st.container()
     settings_container = st.expander("🔧 Settings",expanded=True)
@@ -149,7 +149,6 @@ def settings_container():
         filing = st.pills(
             "Filing Status",
             options=["Single", "MFJ", "MFS"],
-            default=st.session_state['filing_status_pill'],
             key="filing_status_pill",
             selection_mode="single",
         )
@@ -206,7 +205,7 @@ def settings_container():
         if st.session_state.get('spousal_enabled', False):
             with st.expander(f"{st.session_state.get('spouse_name', 'Spouse2')}'s Pre-Tax"):
                 spouse_sal = st.session_state.get('spouse_salary', 0)
-                sp_max401k_perc = int((MAX_401K * 100) / (spouse_sal * 100) * 100) if spouse_sal > 0 else 0
+                sp_max401k_perc = int(min(100, MAX_401K / spouse_sal * 100)) if spouse_sal > 0 else 0
                 st.slider("401k Savings Rate", 0, max(sp_max401k_perc, 1), key='spouse_trad_401k_rate')
                 st.number_input("401k Match Rate", key='spouse_trad_401k_match_rate')
                 st.number_input("Annual HSA contributions", 0, MAX_HSA, key='spouse_hsa')
@@ -216,10 +215,8 @@ def settings_container():
                         st.error(f"{st.session_state['spouse_name']}'s HSA contributions exceed allowed maximum")
 
     with c_after_tax:
-        roth_401k_rate = st.slider("Roth 401k Savings Rate", 0, max401k_perc, value=min(max401k_perc, st.session_state.get('roth_401k_rate', 0)), key='roth_401k_rate')
-        if ((trad_401k_rate + roth_401k_rate)/100) * salary > MAX_401K:
-            with errors:
-                st.error("401k contributions exceed allowed maximum")
+        roth_max = max(0, max401k_perc - trad_401k_rate)
+        roth_401k_rate = st.slider("Roth 401k Savings Rate", 0, roth_max, value=min(roth_max, st.session_state.get('roth_401k_rate', 0)), key='roth_401k_rate')
 
         primary_magi = get_effective_magi(spouse=False)
         filing_jointly = st.session_state.get('filing_jointly', True) if st.session_state.get('spousal_enabled', False) else True
@@ -238,11 +235,10 @@ def settings_container():
         if st.session_state.get('spousal_enabled', False):
             with st.expander(f"{st.session_state.get('spouse_name', 'Spouse2')}'s After-Tax"):
                 spouse_sal = st.session_state.get('spouse_salary', 0)
-                sp_max401k_perc = int((MAX_401K * 100) / (spouse_sal * 100) * 100) if spouse_sal > 0 else 0
-                spouse_roth_rate = st.slider("Roth 401k Savings Rate", 0, max(sp_max401k_perc, 1), key='spouse_roth_401k_rate')
-                if ((st.session_state.get('spouse_trad_401k_rate', 0) + spouse_roth_rate) / 100) * spouse_sal > MAX_401K:
-                    with errors:
-                        st.error(f"{st.session_state['spouse_name']}'s 401k contributions exceed allowed maximum")
+                sp_max401k_perc = int(min(100, MAX_401K / spouse_sal * 100)) if spouse_sal > 0 else 0
+                sp_trad_401k_rate = st.session_state.get('spouse_trad_401k_rate', 0)
+                sp_roth_max = max(0, sp_max401k_perc - sp_trad_401k_rate)
+                spouse_roth_rate = st.slider("Roth 401k Savings Rate", 0, max(sp_roth_max, 1), key='spouse_roth_401k_rate')
 
                 spouse_magi = get_effective_magi(spouse=True)
                 spouse_roth_max = calculate_roth_ira_max(
