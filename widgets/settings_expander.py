@@ -142,10 +142,11 @@ def settings_container():
     settings_container = st.expander("🔧 Settings",expanded=True)
 
     with settings_container:
-        if st.session_state.get('spousal_enabled', False):
-            st.session_state['filing_status_pill'] = "MFJ" if st.session_state.get('filing_jointly', True) else "MFS"
-        elif 'filing_status_pill' not in st.session_state:
-            st.session_state['filing_status_pill'] = "Single"
+        if 'filing_status_pill' not in st.session_state:
+            if st.session_state.get('spousal_enabled', False):
+                st.session_state['filing_status_pill'] = "MFJ" if st.session_state.get('filing_jointly', True) else "MFS"
+            else:
+                st.session_state['filing_status_pill'] = "Single"
         filing = st.pills(
             "Filing Status",
             options=["Single", "MFJ", "MFS"],

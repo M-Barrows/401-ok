@@ -10,7 +10,7 @@ def paycheck_metric():
     return st.metric("💸 Your Paycheck",
                      f"~ ${monthly_paycheck:,.0f}",
                      f"~ ${annual_total:,.0f} / yr",
-                     help=f"Yearly total includes ${bonus_takehome:,.0f} bonus takehome payment(s)",
+                     help=f"Yearly total includes \\${bonus_takehome:,.0f} bonus takehome payment(s)",
                      border=True,
                      height="stretch",
                      delta_color="off",
@@ -23,7 +23,7 @@ def savings_rate_metric():
     savings_rate = (savings_for_rate / total_salary * 100) if total_salary > 0 else 0
     return st.metric("📈 Savings Rate",
                      f"{savings_rate:.2f}%",
-                     help=f"Saving ${savings_for_rate:,.0f} of ${total_salary:,.0f} total compensation including bonuses (+ employer match)",
+                     help=f"Saving \\${savings_for_rate:,.0f} of \\${total_salary:,.0f} total compensation including bonuses (+ employer match)",
                      border=True,
                      height="stretch")
 
@@ -31,9 +31,9 @@ def savings_rate_metric():
 def savings_amt_metric():
     savings_for_rate, total_savings, savings_529 = calculate_total_savings_dollars()
     monthly = total_savings / 12
-    tooltip = f"${savings_for_rate:,.0f} invested"
+    tooltip = f"\\$ {savings_for_rate:,.0f} invested"
     if savings_529 > 0:
-        tooltip += f" + ${savings_529:,.0f} 529"
+        tooltip += f" + \\${savings_529:,.0f} in a 529"
     return st.metric("🏦 Total Savings",
                      f"~ ${monthly:,.0f}",
                      f"~ ${total_savings:,.0f} / yr",
@@ -98,7 +98,7 @@ def nest_egg_metric():
     return st.metric("📈 Projected Nest Egg",
                      f"~ ${total:,.0f}",
                      f"~ ${total*0.047:,.0f} / yr",
-                     help=f"${contribs:,.0f} in contributions + ${growth:,.0f} in growth",
+                     help=f"\\${contribs:,.0f} in contributions + \\${growth:,.0f} in growth",
                      border=True,
                      delta_arrow="off",
                      delta_color="off",
