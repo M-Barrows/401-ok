@@ -227,6 +227,8 @@ def settings_container():
             st.session_state.get('primary_age', 30),
             filing_jointly
         )
+        if st.session_state.get('roth_ira', 0) > primary_roth_max:
+            st.session_state['roth_ira'] = primary_roth_max
         roth_ira = st.number_input("Annual Roth IRA Contributions", 0, primary_roth_max, key='roth_ira',
                                    help=f"Max based on MAGI: ${primary_roth_max:,}")
         brokerage = st.number_input("After Tax Brokerage Contributions", 0,key='brokerage')
@@ -247,6 +249,8 @@ def settings_container():
                     st.session_state.get('spouse_age', 30),
                     filing_jointly
                 )
+                if st.session_state.get('spouse_roth_ira', 0) > spouse_roth_max:
+                    st.session_state['spouse_roth_ira'] = spouse_roth_max
                 st.number_input("Annual Roth IRA Contributions", 0, spouse_roth_max, key='spouse_roth_ira',
                                 help=f"Max based on MAGI: ${spouse_roth_max:,}")
                 st.number_input("After Tax Brokerage Contributions", 0, key='spouse_brokerage')
