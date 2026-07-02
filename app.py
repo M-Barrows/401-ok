@@ -12,7 +12,7 @@ st.set_page_config(
         "About":"""
             Made with 💛 by [Code and Coffee](https://codecoffee.org). I made this entirely for me. If you find use in it, that's a big win!
 
-            I often found myself drafting up what-if scenarios after catching up with my latest personal finance creators. However, that task involved creating new one-off spreadsheets, tweaking it until the monthly takehome amount was acceptable, generating a monthly savings amount, plugging that into various online calculators, going back to the spreadsheet, etc., etc. It was fun to dream but the workflow was exhausted. 
+            I often found myself drafting up what-if scenarios after catching up with my latest personal finance creators. However, that task involved creating new one-off spreadsheets, tweaking it until the monthly takehome amount was acceptable, generating a monthly savings amount, plugging that into various online calculators, going back to the spreadsheet, etc., etc. It was fun to dream but the workflow was exhausting. 
 
             That's how 401-ok came to be. I just needed a single place to do all of my experimenting. This tool does NOT rival many of the existing tools out there in terms of number of features. But, what it does do is answer the questions for my specific (very simple) situation and provide instant feedback when changes in allocation are made. I don't plan to make big changes to this tool. But, as I have more questions or what-if scenarios that I can't answer, I will look to expand the tool at that time. 
 
