@@ -1,7 +1,6 @@
 import streamlit as st
 
-from tools.globals import DEFAULTS
-from tools.session_data import init_session_data
+from tools.session_data import init_session_data, defaults
 
 st.set_page_config(
     page_title="401-OK",
@@ -27,10 +26,10 @@ st.write("# 401-OK! 👌")
 
 init_session_data()
     
+for k, v in defaults.items():
+    if k in st.session_state:
+        st.session_state[k] = st.session_state[k]
 
-for key,value in DEFAULTS.items():
-    if key in st.session_state:
-        st.session_state[key]=st.session_state[key]
 pg = st.navigation({
     "Home": [st.Page('pages/overview/home.py',title="Home",icon="🏠",default=True)],
     "Retirement": [
@@ -38,4 +37,3 @@ pg = st.navigation({
     ]
 })
 pg.run()
-# st.session_state

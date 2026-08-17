@@ -18,6 +18,8 @@ defaults = {
     'taxable_income':0,
     'children':0,
     'years_to_retirement':25,
+    'bonus_amt': 4500,
+    'total_salary': 64500,
     'roth_ira_start_balance':0,
     'roth_ira_expected_return':8,
     'hsa_start_balance':0,
@@ -30,17 +32,44 @@ defaults = {
     'edu_529_expected_return':8,
     'brokerage_start_balance':0,
     'brokerage_expected_return':8,
+    'spousal_enabled': False,
+    'primary_name': 'Spouse1',
+    'spouse_name': 'Spouse2',
+    'primary_age': 35,
+    'spouse_age': 35,
+    'filing_jointly': True,
+    'spouse_salary': 60_000,
+    'spouse_bonus': 7.5,
+    'spouse_min_net_pay': 3_500,
+    'spouse_trad_401k_rate': 0,
+    'spouse_trad_401k_match_rate': 0,
+    'spouse_roth_401k_rate': 0,
+    'spouse_hsa': 0,
+    'spouse_hsa_match': 0,
+    'spouse_roth_ira': 0,
+    'spouse_brokerage': 0,
+    'spouse_misc_pre_tax_deductions': 0,
+    'spouse_misc_post_tax_deductions': 0,
+    'spouse_donations': 0,
+    'spouse_taxable_income': 0,
+    'spouse_taxable_income_salary_only': 0,
+    'spouse_income_tax': 0,
+    'spouse_bonus_amt': 0,
+    'spouse_roth_ira_start_balance': 0,
+    'spouse_roth_ira_expected_return': 8,
+    'spouse_hsa_start_balance': 0,
+    'spouse_hsa_expected_return': 8,
+    'spouse_roth_401k_start_balance': 0,
+    'spouse_roth_401k_expected_return': 8,
+    'spouse_trad_401k_start_balance': 0,
+    'spouse_trad_401k_expected_return': 8,
+    'spouse_brokerage_start_balance': 0,
+    'spouse_brokerage_expected_return': 8,
+    'spouse_years_to_retirement': 25,
 }
 def init_session_data():
-
-    # if 'config_dict' not in st.session_state:
-    #     st.session_state['config_dict'] = dict()
     for k,v in defaults.items():
       if k not in st.session_state:
             st.session_state[k] = v
-
-# def update_config_dict():
-#     for k,v in defaults.items():
-#         st.session_state['config_dict'][k] = st.session_state.get(k,v)
 
 __all__ = ['init_session_data','defaults']

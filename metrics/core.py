@@ -8,55 +8,98 @@ def paycheck_metric():
     bonus_takehome = calculate_bonus_takehome()
     annual_total = (monthly_paycheck * 12) + bonus_takehome
     return st.metric("💸 Your Paycheck",
-      "~ $"+'{:,.0f}'.format(monthly_paycheck),
-      "~ $"+'{:,.0f}'.format(annual_total)+' Yearly',
-      border=True,
-      height="stretch",
-      delta_color="off",
-      delta_arrow="off")
+                     f"~ ${monthly_paycheck:,.0f}",
+                     f"~ ${annual_total:,.0f} / yr",
+                     help=f"Yearly total includes \\${bonus_takehome:,.0f} bonus takehome payment(s)",
+                     border=True,
+                     height="stretch",
+                     delta_color="off",
+                     delta_arrow="off")
+
 
 def savings_rate_metric():
-    savings_for_rate, _ = calculate_total_savings_dollars()
+    savings_for_rate, total_savings, savings_529 = calculate_total_savings_dollars()
+    total_salary = st.session_state.get('total_salary', 60000)
+    savings_rate = (savings_for_rate / total_salary * 100) if total_salary > 0 else 0
     return st.metric("📈 Savings Rate",
-              '{:,.2f}%'.format(savings_for_rate/st.session_state['total_salary']*100),
-              border=True,
-              height="stretch")
+                     f"{savings_rate:.2f}%",
+                     help=f"Saving \\${savings_for_rate:,.0f} of \\${total_salary:,.0f} total compensation including bonuses (+ employer match)",
+                     border=True,
+                     height="stretch")
+
+
 def savings_amt_metric():
-    _, total_savings = calculate_total_savings_dollars()
-    return st.metric(
-          "🏦 Total Savings",
-          "~ $"+'{:,.0f}'.format(round(total_savings)),
-          "$"+'{:,.0f}'.format(round(total_savings/12))+" Monthly",
-          border=True,
-          delta_arrow="off",
-          delta_color="off"
-    )
+    savings_for_rate, total_savings, savings_529 = calculate_total_savings_dollars()
+    monthly = total_savings / 12
+    tooltip = f"\\$ {savings_for_rate:,.0f} invested"
+    if savings_529 > 0:
+        tooltip += f" + \\${savings_529:,.0f} in a 529"
+    return st.metric("🏦 Total Savings",
+                     f"~ ${monthly:,.0f}",
+                     f"~ ${total_savings:,.0f} / yr",
+                     help=tooltip,
+                     border=True,
+                     delta_arrow="off",
+                     delta_color="off")
+
+
 def nest_egg_metric():
     contributions = calculate_annual_contributions_by_account()
-    expected_returns = get_expected_returns_by_account()
-    starting_balance = get_current_balance_by_account()
-    config_dict = dict()
-    for account in ACCOUNT_KEYS:
-        config_dict.update( 
-            {
-                account: {
-                    'expected_return': expected_returns[account],
-                    'start_balance': starting_balance[account],
-                    'contributions': contributions[account]
-                }
-            }
-        )
+    df = nest_egg_forecast_by_account_df({
+        account: {
+            'start_balance': get_current_balance_by_account()[account],
+            'contributions': contributions.get(account, 0),
+            'expected_return': get_expected_returns_by_account()[account],
+        }
+        for account in ACCOUNT_KEYS
+    })
 
-    chart_df = nest_egg_forecast_by_account_df(config_dict)
-    chart_df['Account'] = chart_df.apply(lambda X: X.Account.replace('_',' ').title(), axis = 1)
-    final_portfolio_value = chart_df.groupby(['Year']).sum().reset_index()['Total'].iloc[-1]
-    return st.metric(
-          "📈 Projected Nest Egg",
-          "~ $"+'{:,.0f}'.format(round(final_portfolio_value)),
-          "~ $"+'{:,.0f}'.format(round(final_portfolio_value*0.047)) + " Yearly",
-          border=True,
-          delta_arrow="off",
-          delta_color="off",
-          height = "stretch"
-    )
-__all__ = ['paycheck_metric','savings_rate_metric','savings_amt_metric','nest_egg_metric']
+    if st.session_state.get('spousal_enabled', False):
+        primary_years = st.session_state.get('years_to_retirement', 25)
+        spouse_years = st.session_state.get('spouse_years_to_retirement', 25)
+        max_years = max(primary_years, spouse_years)
+
+        spouse_contributions = calculate_annual_contributions_by_account(spouse=True)
+        spouse_df = nest_egg_forecast_by_account_df({
+            account: {
+                'start_balance': get_current_balance_by_account(spouse=True)[account],
+                'contributions': spouse_contributions.get(account, 0),
+                'expected_return': get_expected_returns_by_account(spouse=True)[account],
+            }
+            for account in ['roth_ira', 'hsa', 'roth_401k', 'trad_401k', 'brokerage']
+        }, years_to_retirement=max_years)
+
+        if not df.empty and not spouse_df.empty:
+            df = nest_egg_forecast_by_account_df({
+                account: {
+                    'start_balance': get_current_balance_by_account()[account],
+                    'contributions': contributions.get(account, 0),
+                    'expected_return': get_expected_returns_by_account()[account],
+                }
+                for account in ACCOUNT_KEYS
+            }, years_to_retirement=max_years)
+            df = df._append(spouse_df, ignore_index=True)
+        elif not spouse_df.empty:
+            df = spouse_df
+
+    if df.empty:
+        st.metric("📈 Projected Nest Egg", "$0",
+                  help="Add account starting balances and contributions to see your forecast")
+        return
+
+    latest = df[df['Year'] == df['Year'].max()]
+    if latest.empty:
+        st.metric("📈 Projected Nest Egg", "$0")
+        return
+
+    total = latest['Total'].sum()
+    contribs = latest['Contributions'].sum()
+    growth = latest['Growth'].sum()
+    return st.metric("📈 Projected Nest Egg",
+                     f"~ ${total:,.0f}",
+                     f"~ ${total*0.047:,.0f} / yr",
+                     help=f"\\${contribs:,.0f} in contributions + \\${growth:,.0f} in growth",
+                     border=True,
+                     delta_arrow="off",
+                     delta_color="off",
+                     height="stretch")
