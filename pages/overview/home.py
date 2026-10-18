@@ -1,5 +1,5 @@
 import streamlit as st
-from metrics.core import nest_egg_metric, paycheck_metric, savings_amt_metric, savings_rate_metric
+from metrics.core import contribution_room_metric, effective_tax_bracket_metric, nest_egg_metric, paycheck_metric, savings_amt_metric, savings_rate_metric
 from tools.helper_funcs import optimize_for_foo
 from widgets.nest_egg_chart import nest_egg_forecast_chart
 from widgets.settings_expander import settings_container
@@ -12,6 +12,7 @@ with c_settings:
 with c_metrics:
     c_paycheck, c_save_rate = st.columns(2)
     c_save_amt, c_nest_egg_forecast = st.columns(2)
+    c_tax_bracket, c_tax_savings = st.columns(2)
     nest_egg_forecast_chart()
 
 with c_paycheck:
@@ -22,3 +23,7 @@ with c_save_amt:
     savings_amt_metric()
 with c_nest_egg_forecast:
     nest_egg_metric()
+with c_tax_bracket:
+    effective_tax_bracket_metric()
+with c_tax_savings:
+    contribution_room_metric()

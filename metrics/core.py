@@ -1,6 +1,6 @@
 import streamlit as st
-from tools.globals import ACCOUNT_KEYS
-from tools.helper_funcs import calculate_annual_contributions_by_account, calculate_bonus_takehome, calculate_investment, calculate_total_savings_dollars, calculate_total_starting_balance, compute_net_monthly, get_current_balance_by_account, get_expected_returns_by_account, nest_egg_forecast_by_account_df
+from tools.globals import ACCOUNT_KEYS, BRACKETS_JOINT, BRACKETS_SINGLE, CHILD_TAX_CREDIT, STANDARD_DEDUCTION, STANDARD_DEDUCTION_SINGLE
+from tools.helper_funcs import calculate_annual_contributions_by_account, calculate_bonus_takehome, calculate_investment, calculate_tax, calculate_total_savings_dollars, calculate_total_starting_balance, compute_net_monthly, get_bonus_amount, get_current_balance_by_account, get_expected_returns_by_account, get_spouse_bonus_amount, nest_egg_forecast_by_account_df
 
 
 def paycheck_metric():
@@ -103,3 +103,95 @@ def nest_egg_metric():
                      delta_arrow="off",
                      delta_color="off",
                      height="stretch")
+
+
+def effective_tax_bracket_metric():
+    spousal = st.session_state.get('spousal_enabled', False)
+    filing_jointly = st.session_state.get('filing_jointly', True) if spousal else True
+    brackets = BRACKETS_JOINT if filing_jointly else BRACKETS_SINGLE
+    std_ded = STANDARD_DEDUCTION if filing_jointly else STANDARD_DEDUCTION_SINGLE
+
+    primary_salary = st.session_state.get('salary', 60000)
+    primary_bonus = get_bonus_amount()
+    spouse_salary = st.session_state.get('spouse_salary', 0) if spousal else 0
+    spouse_bonus = get_spouse_bonus_amount() if spousal else 0
+
+    total_income = primary_salary + primary_bonus + spouse_salary + spouse_bonus
+
+    trad_401k_dollars = (st.session_state.get('trad_401k_rate', 0) / 100) * primary_salary
+    hsa_total = st.session_state.get('hsa', 0)
+    misc_pre = st.session_state.get('misc_pre_tax_deductions', 0)
+    donations = st.session_state.get('donations', 0)
+
+    spouse_trad = 0
+    spouse_hsa = 0
+    spouse_misc_pre = 0
+    spouse_donations = 0
+    if spousal:
+        spouse_trad = (st.session_state.get('spouse_trad_401k_rate', 0) / 100) * spouse_salary
+        spouse_hsa = st.session_state.get('spouse_hsa', 0)
+        spouse_misc_pre = st.session_state.get('spouse_misc_pre_tax_deductions', 0)
+        spouse_donations = st.session_state.get('spouse_donations', 0)
+
+    total_pre_tax = trad_401k_dollars + hsa_total + misc_pre + donations \
+                    + spouse_trad + spouse_hsa + spouse_misc_pre + spouse_donations
+
+    ti = total_income - std_ded - total_pre_tax
+    income_tax = calculate_tax(ti, brackets) - (
+        CHILD_TAX_CREDIT * st.session_state.get('children', 0)
+    )
+
+    effective_rate = (income_tax / total_income * 100) if total_income > 0 else 0
+
+    highest_rate = brackets[-1][1]
+    for limit, rate in brackets:
+        if ti <= limit:
+            highest_rate = rate
+            break
+
+    return st.metric("💰 Current Effective Tax Bracket",
+                     f"{effective_rate:.1f}%",
+                     f"~ ${income_tax:,.0f} / yr",
+                     help=f"Highest Tax Bracket: {highest_rate*100:.0f}%",
+                     border=True,
+                     height="stretch",
+                     delta_color="off",
+                     delta_arrow="off")
+
+
+def contribution_room_metric():
+    spousal = st.session_state.get('spousal_enabled', False)
+
+    primary_salary = st.session_state.get('salary', 60000)
+    bonus_amt = get_bonus_amount()
+    total_salary = st.session_state.get('total_salary', primary_salary + bonus_amt)
+
+    trad_401k_dollars = (st.session_state.get('trad_401k_rate', 0) / 100) * primary_salary
+    trad_401k_from_bonus = (st.session_state.get('trad_401k_rate', 0) / 100) * bonus_amt
+    hsa_dollars = st.session_state.get('hsa', 0)
+
+    spouse_salary = st.session_state.get('spouse_salary', 0) if spousal else 0
+    spouse_bonus_amt = get_spouse_bonus_amount() if spousal else 0
+    spouse_trad_401k = (st.session_state.get('spouse_trad_401k_rate', 0) / 100) * spouse_salary if spousal else 0
+    spouse_trad_from_bonus = (st.session_state.get('spouse_trad_401k_rate', 0) / 100) * spouse_bonus_amt if spousal else 0
+    spouse_hsa = st.session_state.get('spouse_hsa', 0) if spousal else 0
+
+    filing_jointly = st.session_state.get('filing_jointly', True) if spousal else True
+    brackets = BRACKETS_JOINT if filing_jointly else BRACKETS_SINGLE
+
+    marginal_rate = brackets[-1][1]
+    for limit, rate in brackets:
+        if total_salary <= limit:
+            marginal_rate = rate
+            break
+
+    pre_tax_contributions = trad_401k_dollars + trad_401k_from_bonus + hsa_dollars \
+                           + spouse_trad_401k + spouse_trad_from_bonus + spouse_hsa
+    tax_savings = pre_tax_contributions * marginal_rate
+
+    return st.metric("💰 Tax Savings from Retirement Accounts",
+                     f"${tax_savings:,.0f}",
+                     border=True,
+                     height="stretch",
+                     delta_color="off",
+                     delta_arrow="off")
